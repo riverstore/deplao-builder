@@ -1,4 +1,4 @@
-import { API, CloseReason, Credentials, LoginQRCallbackEventType, Zalo } from "zca-js";
+import { API, CloseReason, Credentials, LoginQRCallbackEventType, ThreadType, Zalo } from "zca-js";
 import ConnectionManager from "./ConnectionManager";
 import Logger from "./Logger";
 import EventBroadcaster, { registerGroupCacheInvalidator } from "../services/event/EventBroadcaster";
@@ -15,10 +15,20 @@ import { refreshZaloAutoDelete } from "../services/zalo/zaloAutoDeleteSync";
 import { refreshZaloHidden, zaloHiddenApiOf } from "../services/zalo/zaloHiddenConversations";
 import { describeZaloSocketRetry, installZaloListenerRetryGuard } from "./zaloListenerRetry";
 
-const MAX_RECONNECT_ATTEMPTS = 5;
+const MAX_RECONNECT_ATTEMPTS = 10;
 const RECONNECT_DELAY_BASE_MS = 5000; // 5s base, exponential backoff
 /** zca-js tự nối lại websocket (retryOnClose): quá lâu chưa nối được thì đăng nhập lại cả phiên như trước. */
 const ZCA_RETRY_WATCHDOG_MS = 90_000;
+// Giới hạn mỗi lần chờ 2 phút để mất mạng lâu (sleep, đổi wifi) vẫn tự kết nối lại được (~12 phút tổng)
+const RECONNECT_DELAY_MAX_MS = 120_000;
+// zca-js chỉ gửi ping mà không kiểm tra phản hồi → socket "chết lặng" vẫn báo OPEN.
+// Tự ping ở tầng WebSocket, quá thời gian không nhận gì thì đóng để kích hoạt reconnect.
+const WS_PING_INTERVAL_MS = 30_000;
+const WS_IDLE_TIMEOUT_MS = 90_000;
+// Zalo đóng kết nối với các mã này khi tài khoản mở ở nơi khác (Zalo Web) → reconnect sẽ đá qua lại
+const FATAL_CLOSE_CODES = new Set<number>([CloseReason.DuplicateConnection, CloseReason.KickConnection]);
+// Chờ tối đa để lấy tên nhóm cho workflow, không để API chậm giữ tin nhắn lại
+const GROUP_INFO_WAIT_MS = 2_000;
 
 class ZaloLoginHelper {
 
@@ -234,6 +244,10 @@ class ZaloLoginHelper {
     private static reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
     // Set lưu các account đã bị xóa chủ động - KHÔNG reconnect
     private static removedAccounts: Set<string> = new Set();
+    // Timer watchdog kiểm tra socket còn sống cho mỗi account
+    private static watchdogTimers: Map<string, ReturnType<typeof setInterval>> = new Map();
+    // Account vừa mất kết nối → sau khi kết nối lại cần tải tin nhắn bị lỡ
+    private static pendingCatchUp: Set<string> = new Set();
     /** Callback được gọi khi QR login thành công */
     private static onQRSuccessCallback: ((zaloId: string, isNewAccount: boolean) => void) | null = null;
 
@@ -267,7 +281,7 @@ class ZaloLoginHelper {
 
     /**
      * Lên lịch reconnect với exponential backoff.
-     * attempt=0 → delay=5s, 1→10s, 2→20s, 3→40s, 4→80s → rồi đánh dấu dead.
+     * attempt=0 → delay=5s, 1→10s, 2→20s, 3→40s, 4→80s, 5..9→120s → rồi đánh dấu dead.
      */
     public static scheduleReconnect(zaloId: string, auth: any, attempt: number): void {
         if (attempt >= MAX_RECONNECT_ATTEMPTS) {
@@ -279,7 +293,7 @@ class ZaloLoginHelper {
         }
 
 
-        const delay = RECONNECT_DELAY_BASE_MS * Math.pow(2, attempt);
+        const delay = Math.min(RECONNECT_DELAY_BASE_MS * Math.pow(2, attempt), RECONNECT_DELAY_MAX_MS);
         Logger.log(`[ZaloLoginHelper] ${zaloId} scheduling reconnect attempt ${attempt + 1}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
 
         // Cancel bất kỳ timer pending nào
@@ -332,6 +346,60 @@ class ZaloLoginHelper {
         const timer = ZaloLoginHelper.reconnectTimers.get(zaloId);
         if (timer) { clearTimeout(timer); ZaloLoginHelper.reconnectTimers.delete(zaloId); }
         ZaloLoginHelper.reconnectAttempts.delete(zaloId);
+    }
+
+    /**
+     * Ping ở tầng WebSocket và theo dõi dữ liệu nhận về.
+     * Quá WS_IDLE_TIMEOUT_MS không có message/pong → terminate() → socket đóng với 1006
+     * → luồng "closed" bình thường sẽ lên lịch reconnect.
+     */
+    private static startWatchdog(zaloId: string, listener: any): void {
+        ZaloLoginHelper.stopWatchdog(zaloId);
+
+        const ws = listener?.ws;
+        if (!ws || typeof ws.ping !== 'function' || typeof ws.on !== 'function') {
+            Logger.warn(`[ZaloLoginHelper] ${zaloId} không truy cập được WebSocket - bỏ qua watchdog`);
+            return;
+        }
+
+        let lastActivityAt = Date.now();
+        const markAlive = () => { lastActivityAt = Date.now(); };
+        // ws.on() thêm listener riêng, không ghi đè ws.onmessage mà zca-js đang dùng
+        ws.on('message', markAlive);
+        ws.on('pong', markAlive);
+
+        const timer = setInterval(() => {
+            // Socket đã được thay thế hoặc đã đóng → watchdog này hết nhiệm vụ
+            if (listener.ws !== ws || ws.readyState !== 1) {
+                ZaloLoginHelper.stopWatchdog(zaloId, timer);
+                return;
+            }
+
+            const idleMs = Date.now() - lastActivityAt;
+            if (idleMs > WS_IDLE_TIMEOUT_MS) {
+                Logger.warn(`[ZaloLoginHelper] ${zaloId} socket không phản hồi ${Math.round(idleMs / 1000)}s - đóng để kết nối lại`);
+                ZaloLoginHelper.stopWatchdog(zaloId, timer);
+                ws.terminate();
+                return;
+            }
+
+            try {
+                ws.ping();
+            } catch (err: any) {
+                Logger.warn(`[ZaloLoginHelper] ${zaloId} ping lỗi: ${err?.message || err}`);
+            }
+        }, WS_PING_INTERVAL_MS);
+
+        ZaloLoginHelper.watchdogTimers.set(zaloId, timer);
+    }
+
+    /** Dừng watchdog; truyền `timer` để không xóa nhầm watchdog mới hơn của cùng account */
+    private static stopWatchdog(zaloId: string, timer?: ReturnType<typeof setInterval>): void {
+        const current = ZaloLoginHelper.watchdogTimers.get(zaloId);
+        if (timer) clearInterval(timer);
+        if (!current || (timer && current !== timer)) return;
+        clearInterval(current);
+        ZaloLoginHelper.watchdogTimers.delete(zaloId);
     }
 
     /** Xóa cache fetchedGroupIds cho 1 nhóm để cho phép re-fetch khi có group_event thay đổi */
@@ -599,6 +667,8 @@ class ZaloLoginHelper {
     public async disconnectUser(zaloId: string): Promise<void> {
         // Cancel any pending reconnect so we don't re-connect after manual disconnect
         ZaloLoginHelper.cancelReconnect(zaloId);
+        ZaloLoginHelper.stopWatchdog(zaloId);
+        ZaloLoginHelper.pendingCatchUp.delete(zaloId);
 
         const connection = ConnectionManager.getConnection(zaloId);
         if (!connection) {
@@ -723,7 +793,6 @@ class ZaloLoginHelper {
                     'data.content': message.data?.content,
                     'data.message': (message.data as any)?.message,
                     'top_level_keys': Object.keys(message),
-                    'full_message': message,
                 })}`);
 
                 // ─── Xử lý chat.delete (xoá tin nhắn phía tôi) ─────────────────
@@ -769,7 +838,11 @@ class ZaloLoginHelper {
                 if (message.type === 1) {
                     const groupId = message.threadId || '';
                     if (groupId) {
-                        await ZaloLoginHelper.fetchGroupInfoIfMissing(zaloId, groupId, connection.api);
+                        // Không chờ quá GROUP_INFO_WAIT_MS; fetch vẫn chạy tiếp ở nền và cập nhật DB sau
+                        await Promise.race([
+                            ZaloLoginHelper.fetchGroupInfoIfMissing(zaloId, groupId, connection.api),
+                            new Promise<void>((r) => setTimeout(r, GROUP_INFO_WAIT_MS)),
+                        ]);
                         let cachedGroupName = '';
                         EventBroadcaster.runOnBossDb((bossDb) => {
                             cachedGroupName = String(bossDb.getContactById(zaloId, groupId)?.display_name || '');
@@ -1102,6 +1175,19 @@ class ZaloLoginHelper {
             ConnectionManager.setConnected(zaloId, true);
             DatabaseService.getInstance().setListenerActive(zaloId, true);
             EventBroadcaster.broadcastConnected(zaloId, { zaloId, send2meId });
+            ZaloLoginHelper.startWatchdog(zaloId, listener);
+        });
+
+        // requestOldMessages cần cipher key nên đợi event này thay vì "connected"
+        listener.on("cipher_key", () => {
+            if (!ZaloLoginHelper.pendingCatchUp.delete(zaloId)) return;
+            try {
+                listener.requestOldMessages(ThreadType.User, null);
+                listener.requestOldMessages(ThreadType.Group, null);
+                Logger.log(`[ZaloLoginHelper] ${zaloId} đã yêu cầu tải tin nhắn bị lỡ sau khi kết nối lại`);
+            } catch (err: any) {
+                Logger.warn(`[ZaloLoginHelper] ${zaloId} tải tin nhắn bị lỡ thất bại: ${err?.message || err}`);
+            }
         });
 
         // Mỗi listener chỉ dọn + hẹn đăng nhập lại một lần ("disconnected" rồi "closed", hoặc chờ nối lại quá lâu)
@@ -1131,14 +1217,16 @@ class ZaloLoginHelper {
             }
             ConnectionManager.removeConnection(zaloId);
 
+            // Đặt sau check stale để không dừng watchdog của connection mới
+            ZaloLoginHelper.stopWatchdog(zaloId);
+            ZaloLoginHelper.pendingCatchUp.add(zaloId);
+
             // ── Auto-reconnect ────────────────────────────────────────────────
-            // Một số CloseReason cho biết token không còn hiệu lực → không retry
-            // Hiện tại thì retry tất cả cho chắc
-            const fatalCodes = new Set([]);
-            if (fatalCodes.has(code)) {
+            // Tài khoản đang mở ở nơi khác (Zalo Web) → tự reconnect sẽ đá phiên kia ra rồi bị đá lại
+            if (FATAL_CLOSE_CODES.has(code)) {
                 Logger.warn(`[ZaloLoginHelper] ${zaloId} fatal disconnect (${CloseReason[code]}) - marking listener_active=0`);
                 DatabaseService.getInstance().setListenerActive(zaloId, false);
-                EventBroadcaster.broadcastListenerDead(zaloId, `fatal_${CloseReason[code] || code}`);
+                EventBroadcaster.broadcastListenerDead(zaloId, 'duplicate_connection');
                 return;
             }
 
