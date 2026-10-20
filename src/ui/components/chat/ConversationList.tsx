@@ -363,12 +363,30 @@ export default function ConversationList() {
       }
       return byId.get(contactId);
     };
-    return dbFilteredContacts.map((contact) => {
+    const withLive = dbFilteredContacts.map((contact) => {
       const ownerId = contact.owner_zalo_id || activeAccountId;
       const live = ownerId ? getLive(ownerId, contact.contact_id) : undefined;
       return live ? { ...contact, ...live } : contact;
     });
-  }, [dbFilteredContacts, contacts, activeAccountId]);
+
+    // Snapshot cũng không tự thêm hội thoại vừa chuyển sang chưa đọc sau khi query
+    // (badge đếm từ store nên đã tăng) → bổ sung từ store, lọc channel/search giống DB.
+    // Lọc "Khác" do bước filtered/filteredMerged phía sau đảm nhận.
+    if (filter === 'unread') {
+      const accountIds = mergedInboxMode ? mergedInboxAccounts : (activeAccountId ? [activeAccountId] : []);
+      const existing = new Set(withLive.map(c => `${c.owner_zalo_id || activeAccountId}_${c.contact_id}`));
+      const q = search.trim().toLowerCase();
+      for (const zaloId of accountIds) {
+        for (const c of contacts[zaloId] || []) {
+          if (!(c.unread_count > 0) || existing.has(`${zaloId}_${c.contact_id}`)) continue;
+          if (channelFilter !== 'all' && (c.channel || 'zalo') !== channelFilter) continue;
+          if (q && ![c.display_name, c.alias, c.contact_id, c.phone].some(v => String(v || '').toLowerCase().includes(q))) continue;
+          withLive.push({ ...c, owner_zalo_id: c.owner_zalo_id || zaloId });
+        }
+      }
+    }
+    return withLive;
+  }, [dbFilteredContacts, contacts, activeAccountId, filter, mergedInboxMode, mergedInboxAccounts, channelFilter, search]);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   // Ảnh nhóm chỉ tải khi hàng vào vùng nhìn thấy (+240px trước / sau khi cuộn): một observer cho cả danh sách
   const [listContainerEl, setListContainerEl] = useState<HTMLDivElement | null>(null);
