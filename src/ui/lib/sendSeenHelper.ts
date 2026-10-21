@@ -1,6 +1,7 @@
 import ipc, { buildZaloAuth } from '@/lib/ipc'
 import DataAccessor from '@/lib/data/DataAccessor';;
 import { useAccountStore } from '@/store/accountStore';
+import { isPrivacyEnabled } from '@/store/privacyStore';
 import { channelSupports, type Channel } from '@/../configs/channelConfig';
 import { CHANNEL } from '@/lib/channelHelper';
 
@@ -22,6 +23,8 @@ export function sendSeenForThread(
   lastMsg?: { msg_id: string; cli_msg_id?: string; sender_id?: string; msg_type?: string; status?: string; timestamp?: number } | null,
 ): void {
   try {
+    // Tùy chọn riêng tư "Ẩn trạng thái Đã xem": chỉ đánh dấu đọc trong app, không báo cho người gửi
+    if (isPrivacyEnabled('hideSeen')) return;
     // Skip for channels that don't support seen status
     const accObj = useAccountStore.getState().accounts.find(a => a.zalo_id === zaloId);
     if (!accObj) return;

@@ -200,6 +200,22 @@ html[data-custom-font="true"] body {
   font-size: var(--chat-font-size, inherit);
 }
 
+/* Chống nhìn trộm (privacyStore → html[data-blur-*]): làm mờ, rê chuột vào hàng/tin nhắn thì hiện.
+   Tin nhắn dùng [data-msg-ids] có sẵn trên mỗi hàng tin của ChatWindow. */
+html[data-blur-last-message] .privacy-last-message,
+html[data-blur-names] .privacy-name,
+html[data-blur-avatars] .privacy-avatar,
+html[data-blur-messages] [data-msg-ids] {
+  filter: blur(6px);
+  transition: filter 0.15s ease;
+}
+html[data-blur-last-message] .privacy-reveal:hover .privacy-last-message,
+html[data-blur-names] .privacy-reveal:hover .privacy-name,
+html[data-blur-avatars] .privacy-reveal:hover .privacy-avatar,
+html[data-blur-messages] [data-msg-ids]:hover {
+  filter: none;
+}
+
 @layer base {
   * {
     box-sizing: border-box;

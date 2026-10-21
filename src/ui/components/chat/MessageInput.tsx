@@ -4,6 +4,7 @@ import { forgetReplyDraft, getReplyDraft, replyDraftKey, saveReplyDraft } from '
 import { useShallow } from 'zustand/react/shallow';
 import {useAccountStore} from '@/store/accountStore';
 import {useAppStore} from '@/store/appStore';
+import { isPrivacyEnabled } from '@/store/privacyStore';
 import {useEmployeeStore} from '@/store/employeeStore';
 import ipc, { buildZaloAuth } from '@/lib/ipc'
 import DataAccessor, { isReadFailure, readFailureMessage } from '@/lib/data/DataAccessor';
@@ -411,6 +412,8 @@ export default function MessageInput() {
 
   const sendTypingEvent = useCallback(() => {
     if (!activeAccountId || !activeThreadId) return;
+    // Tùy chọn riêng tư: không cho người nhận thấy "đang soạn tin"
+    if (isPrivacyEnabled('hideTyping')) return;
     const now = Date.now();
     // Throttle: chỉ gửi tối đa 1 lần / 4 giây
     if (now - lastTypingSentRef.current < 4000) return;

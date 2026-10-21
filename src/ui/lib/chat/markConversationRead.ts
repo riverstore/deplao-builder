@@ -14,6 +14,7 @@ import { CHANNEL } from '@/lib/channelHelper';
 import { useAccountStore } from '@/store/accountStore';
 import { useChatStore } from '@/store/chatStore';
 import { useEmployeeStore } from '@/store/employeeStore';
+import { isPrivacyEnabled } from '@/store/privacyStore';
 
 /** synced = sent to the platform; unsupported = platform has no API / nothing to send; failed = API error. */
 export type ReadSyncResult = 'synced' | 'unsupported' | 'failed';
@@ -41,6 +42,8 @@ async function syncZaloRead(account: any, threadId: string, threadType: number):
   const res: any = await DataAccessor.getMessages({ zaloId: account.zalo_id, threadId, limit: 1, offset: 0 }).catch(() => null);
   const last = res?.messages?.[0];
   if (!last?.msg_id) return { sync: 'unsupported' };
+  // Ẩn "Đã xem": bỏ dấu "chưa đọc" thủ công ở trên vẫn làm, chỉ không báo đã xem cho người gửi
+  if (isPrivacyEnabled('hideSeen')) return { sync: 'unsupported' };
   const seen = [{
     msgId: String(last.msg_id),
     cliMsgId: String(last.cli_msg_id || last.msg_id),
@@ -77,6 +80,7 @@ export async function markConversationRead(opts: MarkConversationReadOptions): P
       return account ? await syncZaloRead(account, threadId, threadType) : { sync: 'failed', error: 'Không tìm thấy tài khoản' };
     }
     if (channel === CHANNEL.TELEGRAM_USER || channel === CHANNEL.FACEBOOK) {
+      if (isPrivacyEnabled('hideSeen')) return { sync: 'unsupported' };
       const res = await getAdapter(channel).markAsRead({ accountId, threadId });
       return res?.success === false ? { sync: 'failed', error: res.error } : { sync: 'synced' };
     }
