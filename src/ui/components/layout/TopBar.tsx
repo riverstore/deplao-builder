@@ -26,6 +26,7 @@ import { summarizeInAppNotify } from '@/lib/chat/inAppNotify';
 import FeatureLauncherPanel from './FeatureLauncherPanel';
 import MobileSyncButton from './MobileSyncButton';
 import FacebookSyncButton from './FacebookSyncButton';
+import QuickSettingsPanel from './QuickSettingsPanel';
 import { isTelegram, isTelegramBot, isTelegramUser } from '@/lib/channelHelper';
 import RestQueryService from '../../../services/http/RestQueryService';
 import { AUTH_EXPIRED_MESSAGE, isWrongPasswordLogin, normalizeBossUrl } from '../../../shared/employeeConnection';
@@ -935,6 +936,9 @@ export default function TopBar() {
             </svg>
           </button>
         )}
+
+        {/* Tùy chỉnh nhanh: giao diện, bảng màu, phông chữ, cỡ chữ tin nhắn */}
+        <QuickSettingsPanel />
 
         {/* Theme toggle */}
         <button
