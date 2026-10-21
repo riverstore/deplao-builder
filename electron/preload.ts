@@ -96,6 +96,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // ─── Util ───────────────────────────────────────────────────────
   util: {
     fetchUrl: (args: { url: string }) => ipcRenderer.invoke('util:fetchUrl', args),
+    ensureGoogleFont: (args: { family: string }) => ipcRenderer.invoke('util:ensureGoogleFont', args),
   },
 
   // ─── Login / Account ─────────────────────────────────────────────
