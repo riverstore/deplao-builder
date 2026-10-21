@@ -37,7 +37,7 @@
 | Chạy app dev | `npm run dev` (tự mở cửa sổ Electron; `http://localhost:27799` chỉ là dev server của Vite cho Electron, mở bằng trình duyệt sẽ không chạy) |
 | Typecheck main process | `npx tsc -p tsconfig.electron.json --noEmit` (phải exit 0) |
 | Typecheck renderer | `npx tsc -p tsconfig.json --noEmit` (code tác giả có thể có lỗi sẵn — chỉ cần không có lỗi ở file mình sửa) |
-| Build bộ cài Windows | `npm run production` → `dist-electron-build\Deplao-Setup-<version>.exe` (mất vài phút, cần Go để build bridge) |
+| Build bộ cài Windows | `npm run production` → `dist-electron-build\Deplao-Setup-<version>.exe` (chi tiết ở mục 4b) |
 | Cài thư viện | `npm install` |
 | Submodule | `git submodule update --init --recursive` |
 
@@ -66,6 +66,31 @@ git push --force-with-lease myfork custom   # sau rebase lịch sử đổi nên
 
 - Push cần đăng nhập GitHub (Git Credential Manager). Nếu báo `Invalid username or token`: người dùng tự chạy `! printf "protocol=https\nhost=github.com\n\n" | git credential-manager erase` rồi push lại (cửa sổ đăng nhập sẽ hiện).
 - Khi gộp chỗ trùng: **giữ thay đổi mới của tác giả**, rồi thêm lại ý của phần sửa (mục 5). Nếu tác giả đã tự sửa đúng lỗi đó hoặc đã xóa hẳn tính năng liên quan → bỏ phần sửa tương ứng và báo người dùng.
+
+## 4b. Build file cài đặt Windows (có phần sửa của người dùng)
+
+Người dùng **không được bấm "Cập nhật" trong app**: auto-updater tải bản chính thức của tác giả và cài đè → mất phần sửa trên nhánh `custom`. Khi tác giả có bản mới: làm mục 4 (lấy code mới) rồi build lại theo mục này.
+
+Yêu cầu: Node + Go đã cài (`go version`), ổ D: còn trống ≥ 3 GB (`dist-electron-build` vài trăm MB, cache Electron tải lần đầu ~150 MB).
+
+```powershell
+cd D:\Code\deplao-builder
+git switch custom
+git status                                  # chỉ được có package-lock.json / build exe thay đổi
+git submodule update --init --recursive
+npm install
+npx tsc -p tsconfig.electron.json --noEmit  # phải sạch trước khi build
+npm run production *> build.log             # chạy vài phút; xem log ở build.log
+```
+
+- `npm run production` làm lần lượt: build bridge Go (`scripts/build-bridge-e2ee.js`, có chạy `go test`), `tsc` main process, `strip-console`, `vite build`, rebuild native module (`better-sqlite3`), `electron-builder`.
+- Kết quả: `dist-electron-build\Deplao-Setup-<version>.exe` (bộ cài, ~170 MB) và `dist-electron-build\win-unpacked\Deplao.exe` (chạy thẳng không cần cài).
+- Kiểm tra build thành công: cuối `build.log` có dòng `building block map ... Deplao-Setup-<version>.exe.blockmap`; tìm `error` / `FAIL` trong log nếu thất bại.
+- Bộ cài **không có chữ ký số** → Windows SmartScreen cảnh báo, bấm "More info" → "Run anyway". Cài đè lên bản cũ, dữ liệu app (tài khoản, tin nhắn) giữ nguyên.
+- Build xong, file `src/bridge-e2ee/build/*.exe` và `package-lock.json` bị thay đổi → **không commit**, trả về bằng `git checkout -- package-lock.json src/bridge-e2ee/build/`.
+- `build.log` không commit (đã thêm vào `.git/info/exclude`; clone mới thì thêm lại dòng `build.log` vào file đó).
+- Có thể xóa `dist-electron-build\` sau khi đã cài để lấy lại chỗ trống (build lại sẽ tạo mới).
+- Chỉ build được bản Windows trên máy này. Bản macOS/Linux phải build trên máy tương ứng hoặc qua GitHub Actions có sẵn (`.github/workflows/`) trên fork.
 
 ## 5. Phần sửa của người dùng trên nhánh `custom`
 
