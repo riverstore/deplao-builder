@@ -17,6 +17,7 @@ import { isTelegramForumGeneral } from '@/lib/channelHelper';
 import { MOBILE_BREAKPOINT } from '@/hooks/useIsMobile';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
+import { isPrivacyEnabled } from '@/store/privacyStore';
 import { getMessageCacheKey, useChatStore } from '@/store/chatStore';
 import {
   LIVE_READ_DELAY_MS, PRESENCE_RESUME_DELAY_MS, isUserPresent, minReadIntervalMs, newerIncoming, newestIncoming,
@@ -95,6 +96,8 @@ export function createLiveReadSync(env: LiveReadEnv) {
 
   async function send(read: PendingRead, opts: { force: boolean; rows?: ReadonlyArray<ReadRow> }): Promise<void> {
     const { ref } = read;
+    // Tùy chọn riêng tư "Ẩn trạng thái Đã xem": chỉ đánh dấu đọc trong app, không báo cho người gửi (mọi kênh)
+    if (isPrivacyEnabled('hideSeen')) return;
     const channel = env.channelOf(ref.accountId);
     if (!supportsPlatformRead(channel)) return;
     const key = keyOf(ref);

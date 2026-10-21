@@ -15,6 +15,7 @@ import { useAccountStore } from '@/store/accountStore';
 import { useChatStore } from '@/store/chatStore';
 import { useEmployeeStore } from '@/store/employeeStore';
 import { newestIncoming, zaloSeenPayload } from './readSyncRules';
+import { isPrivacyEnabled } from '@/store/privacyStore';
 
 /** synced = sent to the platform; unsupported = platform has no API / nothing to send; failed = API error. */
 export type ReadSyncResult = 'synced' | 'unsupported' | 'failed';
@@ -39,6 +40,8 @@ function zaloCall(method: string, accountId: string, params: any): Promise<any> 
 async function syncZaloRead(account: any, threadId: string, threadType: number): Promise<{ sync: ReadSyncResult; error?: string }> {
   const auth = buildZaloAuth(account);
   await zaloCall('removeUnreadMark', account.zalo_id, { auth, threadId, type: threadType }).catch(() => null);
+  // Ẩn "Đã xem": bỏ dấu "chưa đọc" thủ công ở trên vẫn làm, chỉ không báo đã xem cho người gửi
+  if (isPrivacyEnabled('hideSeen')) return { sync: 'unsupported' };
   // Mốc "đã xem" = tin nhận mới nhất (không phải tin của mình / tin hệ thống — Zalo không nhận các tin đó)
   const res: any = await DataAccessor.getMessages({ zaloId: account.zalo_id, threadId, limit: 20, offset: 0 }).catch(() => null);
   const target = newestIncoming(res?.messages, account.zalo_id);

@@ -3,6 +3,17 @@ import { useShallow } from 'zustand/react/shallow';
 import { CHAT_FONT_SIZE_MAX, CHAT_FONT_SIZE_MIN, useAppStore } from '@/store/appStore';
 import { PalettePicker, ThemeModePicker } from '../settings/AppearanceControls';
 import { SlidersIcon } from '../common/icons';
+import { Switch } from '@/components/ui';
+import { usePrivacyStore, type PrivacyKey } from '@/store/privacyStore';
+
+const PRIVACY_OPTIONS: Array<{ key: PrivacyKey; label: string; description?: string }> = [
+  { key: 'blurLastMessage', label: 'Ẩn Tin nhắn gần nhất', description: 'Làm mờ ở danh sách hội thoại, rê chuột để xem' },
+  { key: 'blurMessages', label: 'Ẩn Tin nhắn trong cuộc trò chuyện', description: 'Rê chuột vào tin để xem' },
+  { key: 'blurAvatars', label: 'Ẩn Ảnh đại diện cuộc trò chuyện' },
+  { key: 'blurNames', label: 'Ẩn Tên cuộc trò chuyện' },
+  { key: 'hideTyping', label: 'Ẩn trạng thái Đang soạn tin', description: 'Người nhận không thấy bạn đang gõ' },
+  { key: 'hideSeen', label: 'Ẩn trạng thái Đã xem', description: 'Không báo đã xem cho người gửi; trong app vẫn đánh dấu đã đọc' },
+];
 
 // Gợi ý phông Google Fonts hỗ trợ tiếng Việt; vẫn gõ được tên phông khác
 const FONT_SUGGESTIONS = ['Be Vietnam Pro', 'Inter', 'Roboto', 'Nunito', 'Open Sans', 'Montserrat', 'Lexend', 'Noto Sans', 'Quicksand', 'Mulish'];
@@ -21,6 +32,7 @@ export default function QuickSettingsPanel() {
     fontFamily: s.fontFamily, setFontFamily: s.setFontFamily, chatFontSize: s.chatFontSize, setChatFontSize: s.setChatFontSize,
   })));
   const [fontDraft, setFontDraft] = useState(fontFamily);
+  const { setPrivacy, ...privacy } = usePrivacyStore();
 
   useEffect(() => { setFontDraft(fontFamily); }, [fontFamily]);
 
@@ -53,7 +65,7 @@ export default function QuickSettingsPanel() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 w-80 bg-popover border border-border rounded-xl shadow-xl p-4 space-y-4 text-sm">
+        <div className="absolute right-0 top-full mt-1 z-50 w-80 max-h-[80vh] overflow-y-auto bg-popover border border-border rounded-xl shadow-xl p-4 space-y-4 text-sm">
           <div>
             <SectionTitle>Giao diện</SectionTitle>
             <ThemeModePicker />
@@ -101,6 +113,23 @@ export default function QuickSettingsPanel() {
               <option value={0}>Mặc định</option>
               {CHAT_FONT_SIZES.map(px => <option key={px} value={px}>{px}px</option>)}
             </select>
+          </div>
+
+          <div className="border-t border-border pt-3">
+            <SectionTitle>Riêng tư</SectionTitle>
+            <div className="space-y-2.5">
+              {PRIVACY_OPTIONS.map(opt => (
+                <Switch
+                  key={opt.key}
+                  size="sm"
+                  checked={privacy[opt.key]}
+                  onCheckedChange={v => setPrivacy(opt.key, v)}
+                  label={opt.label}
+                  description={opt.description}
+                  className="flex-row-reverse justify-between"
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}
