@@ -219,7 +219,7 @@ export default function App() {
     showIntegrationQuickPanel, toggleIntegrationQuickPanel,
     showAIQuickPanel, toggleAIQuickPanel,
     openQuickChat, quickChatOpen, theme, fontSizeScale,
-    sidebarExpanded
+    sidebarExpanded, themeMode, palette,
   } = useAppStore(useShallow(s => ({
     view: s.view, setView: s.setView, notification: s.notification, hideNotification: s.hideNotification,
     erpPermissionDialog: s.erpPermissionDialog, hideErpPermissionDialog: s.hideErpPermissionDialog,
@@ -230,6 +230,7 @@ export default function App() {
     toggleIntegrationQuickPanel: s.toggleIntegrationQuickPanel, showAIQuickPanel: s.showAIQuickPanel,
     toggleAIQuickPanel: s.toggleAIQuickPanel, openQuickChat: s.openQuickChat, quickChatOpen: s.quickChatOpen,
     theme: s.theme, fontSizeScale: s.fontSizeScale, sidebarExpanded: s.sidebarExpanded,
+    themeMode: s.themeMode, palette: s.palette,
   })));
   const activePluginPanel = useAppStore(s => s.activePluginPanel);
   const setActivePluginPanel = useAppStore(s => s.setActivePluginPanel);
@@ -312,6 +313,22 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  // Bảng màu: 'blue' là mặc định của index.css nên không cần thuộc tính
+  useEffect(() => {
+    if (palette === 'blue') delete document.documentElement.dataset.palette;
+    else document.documentElement.dataset.palette = palette;
+  }, [palette]);
+
+  // Chế độ "Hệ thống": đổi theo Windows/macOS ngay khi hệ điều hành đổi sáng/tối
+  useEffect(() => {
+    if (themeMode !== 'system' || !window.matchMedia) return undefined;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => useAppStore.getState().syncSystemTheme();
+    onChange();
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, [themeMode]);
 
   // ─── Sync font size scale to <html> element ──────────────────────────────
   useEffect(() => {

@@ -6,6 +6,7 @@ import { useEmployeeStore } from '@/store/employeeStore';
 import { playNotificationSound, requestNotificationPermission, showDesktopNotification } from '@/utils/NotificationService';
 import { showConfirm } from '../common/ConfirmDialog';
 import { extractApiError } from '@/utils/apiError';
+import { PalettePicker } from './AppearanceControls';
 import { AlertIcon, ArrowRightIcon, BellIcon, BookIcon, ClipboardIcon, CloudIcon, FolderIcon, HardDriveIcon, LightningIcon, LockIcon, MessageIcon, MonitorIcon, PackageIcon, PaletteIcon, RefreshIcon, ShieldIcon, UserIcon, UsersIcon, ClipboardListIcon, GlobeIcon, MinimizeIcon, SmartphoneIcon, StarIcon, SunIcon } from '../common/icons';
 import IntroductionSettings from './IntroductionSettings';
 import ChangelogSettings from './ChangelogSettings';
@@ -48,7 +49,7 @@ export default function Settings() {
   const [copyProgress, setCopyProgress] = useState<number>(0);
   const [copyTotal, setCopyTotal] = useState<number>(0);
   const { accounts } = useAccountStore();
-  const { showNotification, notifSettings, setNotifSettings, getNotifSettingsForAccount, setNotifSettingsForAccount, theme, setTheme } = useAppStore();
+  const { showNotification, notifSettings, setNotifSettings, getNotifSettingsForAccount, setNotifSettingsForAccount, themeMode, setThemeMode } = useAppStore();
   const [selectedNotifAccount, setSelectedNotifAccount] = useState<string>('__global__');
 
   useEffect(() => {
@@ -261,9 +262,9 @@ export default function Settings() {
                   <div className="flex gap-3">
                     {/* Dark theme option */}
                     <button
-                      onClick={() => setTheme('dark')}
+                      onClick={() => setThemeMode('dark')}
                       className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                        theme === 'dark'
+                        themeMode === 'dark'
                           ? 'border-blue-500 bg-blue-600/10'
                           : 'border-input hover:border-border-strong'
                       }`}
@@ -277,20 +278,20 @@ export default function Settings() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        {theme === 'dark' && (
+                        {themeMode === 'dark' && (
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-blue-400">
                             <path d="M20 6L9 17l-5-5" stroke="currentColor" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                           </svg>
                         )}
-                        <span className={`text-xs font-medium ${theme === 'dark' ? 'text-blue-400' : 'text-muted-foreground'}`}><MinimizeIcon className="w-4 h-4 inline" /> Tối</span>
+                        <span className={`text-xs font-medium ${themeMode === 'dark' ? 'text-blue-400' : 'text-muted-foreground'}`}><MinimizeIcon className="w-4 h-4 inline" /> Tối</span>
                       </div>
                     </button>
 
                     {/* Light theme option */}
                     <button
-                      onClick={() => setTheme('light')}
+                      onClick={() => setThemeMode('light')}
                       className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                        theme === 'light'
+                        themeMode === 'light'
                           ? 'border-blue-500 bg-blue-600/10'
                           : 'border-input hover:border-border-strong'
                       }`}
@@ -304,15 +305,42 @@ export default function Settings() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        {theme === 'light' && (
+                        {themeMode === 'light' && (
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-blue-400">
                             <path d="M20 6L9 17l-5-5" stroke="currentColor" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
                           </svg>
                         )}
-                        <span className={`text-xs font-medium ${theme === 'light' ? 'text-blue-400' : 'text-muted-foreground'}`}><SunIcon className="w-4 h-4 inline" /> Sáng</span>
+                        <span className={`text-xs font-medium ${themeMode === 'light' ? 'text-blue-400' : 'text-muted-foreground'}`}><SunIcon className="w-4 h-4 inline" /> Sáng</span>
+                      </div>
+                    </button>
+
+                    {/* System theme option: theo sáng/tối của hệ điều hành */}
+                    <button
+                      onClick={() => setThemeMode('system')}
+                      className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                        themeMode === 'system'
+                          ? 'border-blue-500 bg-blue-600/10'
+                          : 'border-input hover:border-border-strong'
+                      }`}
+                    >
+                      <div className="w-full h-14 rounded-lg border border-border flex overflow-hidden">
+                        <div className="flex-1" style={{ backgroundColor: '#f7f6f3' }} />
+                        <div className="flex-1" style={{ backgroundColor: '#131518' }} />
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {themeMode === 'system' && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-blue-400">
+                            <path d="M20 6L9 17l-5-5" stroke="currentColor" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        )}
+                        <span className={`text-xs font-medium ${themeMode === 'system' ? 'text-blue-400' : 'text-muted-foreground'}`}><MonitorIcon className="w-4 h-4 inline" /> Hệ thống</span>
                       </div>
                     </button>
                   </div>
+                </div>
+                <div>
+                  <p className="text-sm text-foreground font-medium mb-3">Bảng màu</p>
+                  <PalettePicker />
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Thay đổi giao diện áp dụng ngay lập tức và được lưu tự động.
