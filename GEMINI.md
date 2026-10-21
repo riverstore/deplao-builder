@@ -21,7 +21,7 @@
   - `myfork` = https://github.com/riverstore/deplao-builder (fork của người dùng)
 - Nhánh:
   - `main` = giống hệt `origin/main`, không sửa trực tiếp.
-  - `custom` = code tác giả + phần sửa của người dùng (2 commit, xem mục 5). Đã push lên `myfork/custom`. **Chạy app trên nhánh này.**
+  - `custom` = code tác giả + phần sửa của người dùng (các commit `fix(...)` / `feat(...)` / `docs(...)`, xem mục 5). Đã push lên `myfork/custom`. **Chạy app trên nhánh này.**
 
 ### TUYỆT ĐỐI tránh
 
@@ -54,7 +54,7 @@ git switch custom
 git status                      # phải sạch; nếu chỉ có package-lock.json/.exe build thì: git checkout -- package-lock.json src/bridge-e2ee/build/
 git fetch origin
 git branch -f main origin/main  # cập nhật nhánh main (không cần checkout)
-git rebase origin/main          # đặt 2 commit của người dùng lên trên code mới
+git rebase origin/main          # đặt các commit của người dùng lên trên code mới
 # Nếu CONFLICT: sửa file, `git add <file>`, rồi `git -c core.editor=true rebase --continue`
 # Nếu rối quá: `git rebase --abort` để quay về như trước khi rebase
 git submodule update --init --recursive
@@ -113,6 +113,33 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 - Lỗi: tab "Chưa đọc" lấy danh sách từ DB một lần (snapshot `dbFilteredContacts`), badge thì đếm từ store sống → hội thoại mới chưa đọc làm tăng badge nhưng không hiện trong danh sách.
 - Sửa trong `useMemo` `dbFilteredContactsWithLiveState`: sau khi overlay dữ liệu sống (`withLive`), nếu `filter === 'unread'` thì bổ sung các contact trong store có `unread_count > 0` mà chưa có trong snapshot, lọc theo `channelFilter` (`c.channel || 'zalo'`) và `search` (display_name/alias/contact_id/phone). Dependency thêm `filter, mergedInboxMode, mergedInboxAccounts, channelFilter, search`. Lọc thư mục "Khác" vẫn do bước `filtered`/`filteredMerged` phía sau.
 - Tác giả đã thêm hàm `getLive` (map theo tài khoản) trong cùng `useMemo` — giữ nó, chỉ đổi `return dbFilteredContacts.map(...)` thành `const withLive = ...`.
+
+### Commit 3 — `feat(ui): icon file theo loại và tab Đã ghim`
+
+- `src/assets/file-icons/*.svg` + `LICENSE` + `README.md`: icon Material Icon Theme (MIT). Word/Excel/PowerPoint/PDF đã đổi màu thương hiệu (README ghi rõ). Phải giữ file LICENSE.
+- `src/ui/lib/chat/fileTypeIcons.ts`: `fileTypeIconSrc(fileName, fileExt?)` chọn icon theo đuôi.
+- `ConversationList.tsx`: `formatLastMessage` trả `string | FilePreview`; với tin file (kể cả `last_message` đã lưu dạng `📂 tên`) render `<img>` icon + tên. Chỗ gọi duy nhất ở dòng xem trước của hàng hội thoại.
+- Tab "Đã ghim" (`FilterType` thêm `'pinned'`): ghim Zalo (`zaloPinsByAccount`) ∪ ghim trong app (`localPinsByAccount`, không giới hạn số lượng), lọc trong `filtered` và `filteredMerged`.
+
+### Commit 4 — `feat(ui): giao diện theo hệ thống và bảng màu`
+
+- `appStore.ts`: `themeMode` ('light' | 'dark' | 'system', lưu `app_theme`), `theme` = giá trị đã quy về sáng/tối (khoảng 35 component đọc `theme === 'dark'`, không sửa chúng), `palette` (`app_palette`: blue/green/purple/amoled), `syncSystemTheme`.
+- `App.tsx`: `data-theme`, `data-palette` trên `<html>`; lắng nghe `matchMedia('(prefers-color-scheme: dark)')` khi chế độ Hệ thống.
+- `index.css`: khối `html[data-theme=..][data-palette=..]` chỉ ghi đè màu nhấn; Đen tuyền chỉ cho giao diện Tối.
+- `settings/AppearanceControls.tsx`: `ThemeModePicker`, `PalettePicker` dùng chung (Cài đặt → Giao diện + bảng tùy chỉnh nhanh).
+
+### Commit 5 — `feat(ui): bảng tùy chỉnh nhanh, phông Google Fonts và cỡ chữ tin nhắn`
+
+- `layout/QuickSettingsPanel.tsx` (nút trên `TopBar.tsx`, cạnh nút Sáng/Tối): giao diện, bảng màu, phông chữ, cỡ chữ tin nhắn, công tắc riêng tư. Mô phỏng popup của ZaDark (`src/web/popup.html`, MPL-2.0 — chỉ lấy ý tưởng, KHÔNG chép code).
+- `src/services/font/FontCacheService.ts` + IPC `util:ensureGoogleFont` (`electron/ipc/utilIpc.ts`, `preload.ts`, `src/ui/lib/ipc.ts`): tải CSS từ `fonts.googleapis.com` + file từ `fonts.gstatic.com` (chỉ 2 host này), giữ bộ chữ latin/latin-ext/vietnamese, nhúng `data:` (CSP chỉ cho `font-src 'self' data: https:`), lưu `userData/fonts/<tên>.css`. App.tsx chèn `<style id="app-custom-font">` + `--app-font-family`.
+- Cỡ chữ tin nhắn: `--chat-font-size` áp vào class `chat-msg-text` (gắn trong `ChatWindowBubbles.tsx`, `TextWithMentions` và chữ RTF).
+
+### Commit 6 — `feat(privacy): chống nhìn trộm và ẩn trạng thái đang soạn / đã xem`
+
+- `store/privacyStore.ts` (`app_privacy`): `blurLastMessage`, `blurMessages`, `blurAvatars`, `blurNames`, `hideTyping`, `hideSeen`.
+- Làm mờ bằng CSS (`index.css`): `html[data-blur-*]` + class `privacy-last-message` / `privacy-name` / `privacy-avatar` / `privacy-reveal` (hàng hội thoại) trong `ConversationList.tsx`; tin nhắn dùng `[data-msg-ids]` có sẵn trên hàng tin của `ChatWindow.tsx`.
+- `hideTyping`: chặn trong `sendTypingEvent` (`MessageInput.tsx`). `hideSeen`: chặn ở `sendSeenHelper.ts`, `markConversationRead.ts` (Zalo vẫn `removeUnreadMark`), `channelIpc.markAsRead`. Workflow/API vẫn gửi đã xem nếu được cấu hình (cố ý).
+- Không có công tắc "Ẩn Đã nhận": app không tự gửi `sendDeliveredEvent`.
 
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
