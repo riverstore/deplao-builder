@@ -25,6 +25,7 @@ import PeerInitials from '@/components/common/PeerInitials';
 import { requestGroupAvatar } from '@/lib/chat/groupAvatarLoader';
 import { BellIcon, BellOffIcon, BookmarkIcon, ChatIcon, CheckCircleIcon, CheckIcon, CircleIcon, ClipboardListIcon, CloseIcon, CloudIcon, FolderIcon, GlobeIcon, HardDriveIcon, ImageIcon, LinkIcon, MapPinIcon, MessageCircleIcon, PaperclipIcon, PinIcon, PluginIcon, StarIcon, TargetIcon, TrashIcon, UsersIcon } from '@/components/common/icons';
 import { toLocalMediaUrl } from '@/lib/localMedia';
+import { fileTypeIconSrc } from '@/lib/chat/fileTypeIcons';
 import GlobalSearchPanel from './GlobalSearchPanel';
 import StarredMessagesPanel from './StarredMessagesPanel';
 import AutoMarkReadModal from './AutoMarkReadModal';
@@ -62,7 +63,7 @@ function isPhoneNumber(s: string): boolean {
   return /^(\+84|0)\d{9,10}$/.test(s.trim().replace(/\s/g, ''));
 }
 
-type FilterType = 'all' | 'unread' | 'unreplied' | 'others' | 'label';
+type FilterType = 'all' | 'unread' | 'pinned' | 'unreplied' | 'others' | 'label';
 
 const MUTE_OPTIONS = [
   { label: 'Trong 1 giờ',              until: () => Date.now() + 60 * 60 * 1000 },
@@ -1039,9 +1040,11 @@ export default function ConversationList() {
       : rawSource.filter(c => !othersConversations.has(c.contact_id));
 
     // Label filter + unreplied filter vẫn cần làm ở memory (DB chưa hỗ trợ)
-    const preFiltered = (filter === 'label' || filter === 'unreplied')
+    const preFiltered = (filter === 'label' || filter === 'unreplied' || filter === 'pinned')
       ? source.filter((c) => {
           if (filter === 'unreplied') return c.unread_count > 0 && c.is_replied !== 1;
+          // Ghim trên Zalo (giới hạn số lượng) + ghim trong app (không giới hạn)
+          if (filter === 'pinned') return pinnedThreads.has(c.contact_id) || localPinnedThreads.has(c.contact_id);
           // label filter
           if (effectiveFilterLabelSource === 'local') {
             const threadMap = localLabelThreadMapByAccount[activeAccountId || ''] || {};
@@ -1238,8 +1241,14 @@ export default function ConversationList() {
       return unreadFiltered.filter(c => c.unread_count > 0 && c.is_replied !== 1);
     }
 
+    if (filter === 'pinned') {
+      return unreadFiltered.filter(c =>
+        !!zaloPinsByAccount[c.owner_zalo_id!]?.has(c.contact_id) || !!localPinsByAccount[c.owner_zalo_id!]?.has(c.contact_id)
+      );
+    }
+
     return unreadFiltered;
-  }, [mergedContacts, dbFilteredContactsWithLiveState, mergedInboxFilterAccount, channelFilter, search, filter, filterLabelIds, allOthers, allLabels, mergedLabels, effectiveFilterLabelSource, filterLabelMode, localLabelThreadMapByAccount]);
+  }, [mergedContacts, dbFilteredContactsWithLiveState, mergedInboxFilterAccount, channelFilter, search, filter, filterLabelIds, allOthers, allLabels, mergedLabels, effectiveFilterLabelSource, filterLabelMode, localLabelThreadMapByAccount, zaloPinsByAccount, localPinsByAccount]);
 
   const mergedUnreadCount = mergedContacts
     ? mergedContacts.reduce((s, c) => {
@@ -2445,6 +2454,7 @@ export default function ConversationList() {
       <div className="flex border-b border-border relative">
         <TabBtn label="Tất cả" active={filter === 'all'} onClick={() => { setFilter('all'); setFilterLabelIds([]); setFilterDropdownOpen(false); setMoreMenuOpen(false); }} />
         <TabBtn label="Chưa đọc" active={filter === 'unread'} onClick={() => { setFilter('unread'); setFilterLabelIds([]); setFilterDropdownOpen(false); setMoreMenuOpen(false); }} badge={mergedInboxMode ? mergedUnreadCount : unreadCount} />
+        <TabBtn label="Đã ghim" active={filter === 'pinned'} onClick={() => { setFilter('pinned'); setFilterLabelIds([]); setFilterDropdownOpen(false); setMoreMenuOpen(false); }} />
 
         {/* Tab Nhãn (Local + Zalo) */}
         <div className="flex-1 relative" ref={filterRef}>
@@ -2963,7 +2973,11 @@ export default function ConversationList() {
                         if (draftText) {
                           return <><span className="text-red-400">Chưa gửi: </span><span className="text-muted-foreground">{draftText}</span></>;
                         }
-                        return formatLastMessage(contact.last_message) || (contact.phone ? `${contact.phone}` : '');
+                        const preview = formatLastMessage(contact.last_message);
+                        if (typeof preview !== 'string') {
+                          return <><img src={preview.iconSrc} alt="" className="w-3.5 h-3.5 inline-block align-[-2px] mr-1" draggable={false} />{preview.fileName}</>;
+                        }
+                        return preview || (contact.phone ? `${contact.phone}` : '');
                       })()}
                     </span>
                   </span>
@@ -3203,8 +3217,21 @@ function CtxItem({ icon, label, onClick, hasArrow, danger }: { icon: React.React
   );
 }
 
-function formatLastMessage(msg: string | undefined): string {
+interface FilePreview { fileName: string; iconSrc: string }
+
+function filePreview(fileName: string | undefined, fileExt?: string): FilePreview {
+  const name = String(fileName || '').trim();
+  return name && name !== 'File đính kèm'
+    ? { fileName: name, iconSrc: fileTypeIconSrc(name, fileExt) }
+    : { fileName: 'File đính kèm', iconSrc: fileTypeIconSrc('') };
+}
+
+/** Dòng xem trước tin cuối; tin file trả về FilePreview để hiển thị icon theo loại file */
+function formatLastMessage(msg: string | undefined): string | FilePreview {
   if (!msg) return '';
+  // last_message được lưu sẵn dạng "📂 <tên file>" (DB và useZaloEvents) → đổi icon theo loại file khi hiển thị,
+  // áp dụng được cho cả tin đã lưu trước đây
+  if (msg.startsWith('📂')) return filePreview(msg.slice('📂'.length));
   if (!msg.startsWith('{')) {
     // Handle legacy "text[Type]" format stored from old Zalo API responses
     // e.g. "0[Hình ảnh]" (empty text + image) or "Hello[Hình ảnh]" (text + image)
@@ -3300,7 +3327,10 @@ function formatLastMessage(msg: string | undefined): string {
       return '🎥 Video';
     }
     // File with title - only when msgType is file OR content has file-specific fields
-    if (mt.includes('file') || mt === 'share.file') return p?.title ? `File: ${p.title}` : 'File: ';
+    if (mt.includes('file') || mt === 'share.file') {
+      const fileParams = (() => { try { return typeof p?.params === 'string' ? JSON.parse(p.params) : (p?.params || {}); } catch { return {}; } })();
+      return filePreview(p?.title, fileParams?.fileExt);
+    }
     // Location
     if (mt === 'chat.location.new') {
       const desc = p?.description || '';
@@ -3309,7 +3339,7 @@ function formatLastMessage(msg: string | undefined): string {
     // Parse params for further checks
     const par = (() => { try { return typeof p?.params === 'string' ? JSON.parse(p.params) : (p?.params || {}); } catch { return {}; } })();
     // File heuristic: title + file-specific fields
-    if (p?.title && (par?.fileSize || par?.fileExt || par?.fileUrl || p?.normalUrl || p?.fileUrl)) return `File: ${p.title}`;
+    if (p?.title && (par?.fileSize || par?.fileExt || par?.fileUrl || p?.normalUrl || p?.fileUrl)) return filePreview(p.title, par?.fileExt);
     // Image (by URL fields) - but prefer text content if the message has both
     if (p?.href || par?.hd || par?.rawUrl || p?.thumb) {
       const textContent = (typeof p?.content === 'string' ? p.content : null) || (typeof p?.msg === 'string' ? p.msg : null);
