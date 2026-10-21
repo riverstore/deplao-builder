@@ -15,8 +15,9 @@ import { showConfirm } from '../common/ConfirmDialog';
 import { extractApiError } from '@/lib/app/apiError';
 import {
   BellIcon, BookIcon, BriefcaseIcon, CheckIcon, ClipboardIcon, CloudIcon, FolderIcon, GlobeIcon, HardDriveIcon, MessageIcon,
-  MoonIcon, PaletteIcon, ShieldIcon, SunIcon, TerminalIcon, UserIcon, UsersIcon,
+  MonitorIcon, MoonIcon, PaletteIcon, ShieldIcon, SunIcon, TerminalIcon, UserIcon, UsersIcon,
 } from '../common/icons';
+import { PalettePicker } from './AppearanceControls';
 import IntroductionSettings from './introduction/IntroductionSettings';
 import ChangelogSettings from './changelog/ChangelogSettings';
 import ConversationSettings from './conversation/ConversationSettings';
@@ -428,6 +429,7 @@ export default function Settings() {
 const THEME_PREVIEW = {
   dark: { bg: '#131518', panel: '#1c1f25', line: '#373f49', primary: '#2f7bff' },
   light: { bg: '#eceef3', panel: '#ffffff', line: '#dde1e7', primary: '#1f6bf2' },
+  system: { bg: '#1c1f25', panel: '#2b2f38', line: '#373f49', primary: '#2f7bff' },
 } as const;
 
 function ThemeCard({ label, icon, preview, active, onSelect }: {
@@ -468,7 +470,8 @@ function ThemeCard({ label, icon, preview, active, onSelect }: {
 
 function AppearancePage() {
   const theme = useAppStore(s => s.theme);
-  const setTheme = useAppStore(s => s.setTheme);
+  const themeMode = useAppStore(s => s.themeMode);
+  const setThemeMode = useAppStore(s => s.setThemeMode);
   const fontSizeScale = useAppStore(s => s.fontSizeScale);
   const setFontSizeScale = useAppStore(s => s.setFontSizeScale);
   const [showDesignSystem, setShowDesignSystem] = useState(false);
@@ -483,10 +486,16 @@ function AppearancePage() {
       <SettingsSection title="Chủ đề" flush bodyClassName="p-4">
         <div role="radiogroup" aria-label="Chủ đề" className="flex flex-wrap gap-3">
           <ThemeCard label="Sáng" icon={<SunIcon className="h-4 w-4" />} preview={THEME_PREVIEW.light}
-            active={theme === 'light'} onSelect={() => setTheme('light')} />
+            active={themeMode === 'light'} onSelect={() => setThemeMode('light')} />
           <ThemeCard label="Tối" icon={<MoonIcon className="h-4 w-4" />} preview={THEME_PREVIEW.dark}
-            active={theme === 'dark'} onSelect={() => setTheme('dark')} />
+            active={themeMode === 'dark'} onSelect={() => setThemeMode('dark')} />
+          <ThemeCard label="Hệ thống" icon={<MonitorIcon className="h-4 w-4" />} preview={THEME_PREVIEW.system}
+            active={themeMode === 'system'} onSelect={() => setThemeMode('system')} />
         </div>
+      </SettingsSection>
+
+      <SettingsSection title="Bảng màu" flush bodyClassName="p-4">
+        <PalettePicker />
       </SettingsSection>
 
       <SettingsSection title="Cỡ chữ">
