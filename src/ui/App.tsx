@@ -219,7 +219,7 @@ export default function App() {
     showIntegrationQuickPanel, toggleIntegrationQuickPanel,
     showAIQuickPanel, toggleAIQuickPanel,
     openQuickChat, quickChatOpen, theme, fontSizeScale,
-    sidebarExpanded, themeMode, palette,
+    sidebarExpanded, themeMode, palette, fontFamily, chatFontSize,
   } = useAppStore(useShallow(s => ({
     view: s.view, setView: s.setView, notification: s.notification, hideNotification: s.hideNotification,
     erpPermissionDialog: s.erpPermissionDialog, hideErpPermissionDialog: s.hideErpPermissionDialog,
@@ -230,7 +230,7 @@ export default function App() {
     toggleIntegrationQuickPanel: s.toggleIntegrationQuickPanel, showAIQuickPanel: s.showAIQuickPanel,
     toggleAIQuickPanel: s.toggleAIQuickPanel, openQuickChat: s.openQuickChat, quickChatOpen: s.quickChatOpen,
     theme: s.theme, fontSizeScale: s.fontSizeScale, sidebarExpanded: s.sidebarExpanded,
-    themeMode: s.themeMode, palette: s.palette,
+    themeMode: s.themeMode, palette: s.palette, fontFamily: s.fontFamily, chatFontSize: s.chatFontSize,
   })));
   const activePluginPanel = useAppStore(s => s.activePluginPanel);
   const setActivePluginPanel = useAppStore(s => s.setActivePluginPanel);
@@ -329,6 +329,47 @@ export default function App() {
     media.addEventListener('change', onChange);
     return () => media.removeEventListener('change', onChange);
   }, [themeMode]);
+
+  // Phông Google Fonts: main process tải 1 lần rồi lưu trên máy, ở đây chỉ chèn CSS @font-face
+  useEffect(() => {
+    const root = document.documentElement;
+    const clear = () => {
+      document.getElementById('app-custom-font')?.remove();
+      delete root.dataset.customFont;
+      root.style.removeProperty('--app-font-family');
+    };
+    if (!fontFamily) { clear(); return undefined; }
+    let cancelled = false;
+    ipc.util?.ensureGoogleFont({ family: fontFamily }).then((res) => {
+      if (cancelled) return;
+      if (!res?.success || !res.css) {
+        clear();
+        useAppStore.getState().showNotification(`Không dùng được phông "${fontFamily}": ${res?.error || 'lỗi không xác định'}`, 'error');
+        return;
+      }
+      let style = document.getElementById('app-custom-font') as HTMLStyleElement | null;
+      if (!style) {
+        style = document.createElement('style');
+        style.id = 'app-custom-font';
+        document.head.appendChild(style);
+      }
+      style.textContent = res.css;
+      root.style.setProperty('--app-font-family', `"${res.family || fontFamily}"`);
+      root.dataset.customFont = 'true';
+    }).catch((err: any) => {
+      if (cancelled) return;
+      clear();
+      useAppStore.getState().showNotification(`Không dùng được phông "${fontFamily}": ${err?.message || err}`, 'error');
+    });
+    return () => { cancelled = true; };
+  }, [fontFamily]);
+
+  // Cỡ chữ riêng cho nội dung tin nhắn (class chat-msg-text trong bong bóng chat)
+  useEffect(() => {
+    const root = document.documentElement;
+    if (chatFontSize > 0) root.style.setProperty('--chat-font-size', `${chatFontSize}px`);
+    else root.style.removeProperty('--chat-font-size');
+  }, [chatFontSize]);
 
   // ─── Sync font size scale to <html> element ──────────────────────────────
   useEffect(() => {

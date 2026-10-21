@@ -368,6 +368,7 @@ declare global {
       };
       util: {
         fetchUrl: (args: { url: string }) => Promise<{ success: boolean; data?: string; contentType?: string; statusCode?: number; error?: string }>;
+        ensureGoogleFont: (args: { family: string }) => Promise<{ success: boolean; family?: string; css?: string; cached?: boolean; error?: string }>;
       };
       login: {
         loginQR: (tempId: string, proxyId?: number | null) => Promise<any>;

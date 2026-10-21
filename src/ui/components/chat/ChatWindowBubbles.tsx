@@ -2970,7 +2970,7 @@ export function applyRtfStyles(text: string, styles: RtfStyle[], mentions?: RtfM
         i = j;
     }
 
-    return <span className="whitespace-pre-wrap select-text break-words" style={{ overflowWrap: 'break-word', wordBreak: 'normal' }}>{nodes}</span>;
+    return <span className="chat-msg-text whitespace-pre-wrap select-text break-words" style={{ overflowWrap: 'break-word', wordBreak: 'normal' }}>{nodes}</span>;
 }
 
 /** Render normal text, highlighting @mentions in blue, with optional click-to-profile */
@@ -3071,7 +3071,7 @@ export function TextWithMentions({
         if (cursor < converted.length) {
             segments.push(applyHighlight(converted.slice(cursor), `native-text-${cursor}`, false));
         }
-        return <span className="whitespace-pre-wrap select-text break-words" style={{ overflowWrap: 'break-word', wordBreak: 'normal', ...emojiFontStyle }}>{segments}</span>;
+        return <span className="chat-msg-text whitespace-pre-wrap select-text break-words" style={{ overflowWrap: 'break-word', wordBreak: 'normal', ...emojiFontStyle }}>{segments}</span>;
     }
 
     // Match @Name: greedy - capture everything after @ until a newline or double-space
@@ -3177,8 +3177,8 @@ export function TextWithMentions({
         }
     }
 
-    if (segments.length === 0) return <span className="whitespace-pre-wrap select-text break-words" style={{ overflowWrap: 'break-word', wordBreak: 'normal', ...emojiFontStyle }}>{converted}</span>;
-    return <span className="whitespace-pre-wrap select-text break-words" style={{ overflowWrap: 'break-word', wordBreak: 'normal', ...emojiFontStyle }}>{segments}</span>;
+    if (segments.length === 0) return <span className="chat-msg-text whitespace-pre-wrap select-text break-words" style={{ overflowWrap: 'break-word', wordBreak: 'normal', ...emojiFontStyle }}>{converted}</span>;
+    return <span className="chat-msg-text whitespace-pre-wrap select-text break-words" style={{ overflowWrap: 'break-word', wordBreak: 'normal', ...emojiFontStyle }}>{segments}</span>;
 }
 
 export function RtfBubble({

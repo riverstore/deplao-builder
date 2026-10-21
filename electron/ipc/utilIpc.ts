@@ -1,4 +1,5 @@
 import { ipcMain, net } from 'electron';
+import { ensureGoogleFont } from '../../src/services/font/FontCacheService';
 
 /**
  * Utility IPC handlers - fetch URLs from main process (no CORS restrictions)
@@ -38,6 +39,16 @@ export function registerUtilIpc(): void {
       };
     } catch (err: any) {
       return { success: false, error: err.message || 'Fetch failed' };
+    }
+  });
+
+  /** Phông Google Fonts cho giao diện: tải một lần, các lần sau đọc từ máy */
+  ipcMain.handle('util:ensureGoogleFont', async (_event, args: { family: string }) => {
+    try {
+      const result = await ensureGoogleFont(args?.family);
+      return { success: true, ...result };
+    } catch (err: any) {
+      return { success: false, error: err?.name === 'AbortError' ? 'Hết thời gian tải phông chữ' : (err?.message || 'Không tải được phông chữ') };
     }
   });
 }

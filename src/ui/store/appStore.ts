@@ -155,6 +155,12 @@ interface AppStore {
   syncSystemTheme: () => void;
   palette: AppPalette;
   setPalette: (palette: AppPalette) => void;
+  /** Tên phông Google Fonts cho toàn app; '' = phông mặc định */
+  fontFamily: string;
+  setFontFamily: (family: string) => void;
+  /** Cỡ chữ (px) của nội dung tin nhắn; 0 = theo cỡ chữ chung */
+  chatFontSize: number;
+  setChatFontSize: (px: number) => void;
   fontSizeScale: number;
   setFontSizeScale: (scale: number) => void;
 
@@ -320,6 +326,21 @@ const systemTheme = (): AppTheme => {
 
 const resolveTheme = (mode: AppThemeMode): AppTheme => (mode === 'system' ? systemTheme() : mode);
 
+export const CHAT_FONT_SIZE_MIN = 12;
+export const CHAT_FONT_SIZE_MAX = 24;
+
+const loadFontFamily = (): string => {
+  try { return localStorage.getItem('app_font_family') || ''; } catch { return ''; }
+};
+
+const loadChatFontSize = (): number => {
+  try {
+    const n = Number(localStorage.getItem('app_chat_font_size') || 0);
+    if (n >= CHAT_FONT_SIZE_MIN && n <= CHAT_FONT_SIZE_MAX) return n;
+  } catch {}
+  return 0;
+};
+
 const loadPalette = (): AppPalette => {
   try {
     const stored = localStorage.getItem('app_palette') as AppPalette | null;
@@ -468,6 +489,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   themeMode: loadThemeMode(),
   theme: resolveTheme(loadThemeMode()),
   palette: loadPalette(),
+  fontFamily: loadFontFamily(),
+  chatFontSize: loadChatFontSize(),
   fontSizeScale: loadFontSizeScale(),
   groupInfoCache: {},
   othersConversations: {},
@@ -834,6 +857,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setPalette: (palette) => {
     try { localStorage.setItem('app_palette', palette); } catch {}
     set({ palette });
+  },
+
+  setFontFamily: (family) => {
+    const name = family.trim().replace(/\s+/g, ' ');
+    try { localStorage.setItem('app_font_family', name); } catch {}
+    set({ fontFamily: name });
+  },
+
+  setChatFontSize: (px) => {
+    const n = px >= CHAT_FONT_SIZE_MIN && px <= CHAT_FONT_SIZE_MAX ? px : 0;
+    try { localStorage.setItem('app_chat_font_size', String(n)); } catch {}
+    set({ chatFontSize: n });
   },
 
   setFontSizeScale: (scale) => {
