@@ -191,6 +191,33 @@ html[data-theme="dark"][data-palette="amoled"] {
   --sidebar: 0 0 0;
   --sidebar-hover: 20 20 20;
 }
+/* ZaDark: tông xám than / đen trung tính của Dark Mode ZaDark (chỉ lấy giá trị màu,
+   https://github.com/ncdai/zadark src/core/scss/zadark.scss), màu nhấn xanh Zalo. Chỉ giao diện Tối. */
+html[data-theme="dark"][data-palette="zadark"] {
+  --background: 24 25 26;          /* #18191a */
+  --card: 35 37 38;                /* #232526 */
+  --popover: 44 46 47;             /* #2c2e2f */
+  --muted: 48 50 51;               /* #303233 */
+  --accent: 61 63 64;              /* #3d3f40 */
+  --border: 61 63 64;              /* #3d3f40 */
+  --input: 70 72 73;               /* #464849 */
+  --border-strong: 105 107 107;    /* #696b6b */
+  --foreground: 229 229 229;       /* #e5e5e5 */
+  --muted-foreground: 158 159 159; /* #9e9f9f */
+  --subtle-foreground: 123 124 125;/* #7b7c7d */
+  --primary: 0 104 255;            /* #0068ff */
+  --primary-hover: 57 137 255;     /* #3989ff */
+  --info: 114 171 255;             /* #72abff */
+  --ring: 0 104 255;
+  --bubble-in: 48 50 51;           /* #303233 */
+  --bubble-in-border: 61 63 64;    /* #3d3f40 */
+  --bubble-out: 53 62 75;          /* #353e4b */
+  --bubble-out-border: 75 87 103;  /* #4b5767 */
+  --selected: 44 46 47;            /* #2c2e2f */
+  --sidebar: 45 48 49;             /* #2d3031 */
+  --sidebar-hover: 58 61 62;       /* #3a3d3e */
+  --sidebar-active: 0 104 255;
+}
 
 /* Phông chữ tự chọn (Google Fonts, App.tsx chèn @font-face) và cỡ chữ riêng của tin nhắn */
 html[data-custom-font="true"] body {

@@ -15,6 +15,7 @@ const PALETTE_META: Record<AppPalette, { label: string; swatch: string; hint?: s
   green: { label: 'Xanh lá', swatch: '#20a868' },
   purple: { label: 'Tím', swatch: '#8b5cf6' },
   amoled: { label: 'Đen tuyền', swatch: '#000000', hint: 'Chỉ áp dụng khi giao diện Tối' },
+  zadark: { label: 'ZaDark', swatch: '#232526', hint: 'Tông xám than như ZaDark — chỉ áp dụng khi giao diện Tối' },
 };
 
 /** Sáng / Tối / Hệ thống dạng nút bấm liền nhau */
@@ -48,7 +49,7 @@ export function PalettePicker({ showLabels = true }: { showLabels?: boolean }) {
       {APP_PALETTES.map(value => {
         const meta = PALETTE_META[value];
         const active = palette === value;
-        const inactiveInLight = value === 'amoled' && theme === 'light';
+        const inactiveInLight = (value === 'amoled' || value === 'zadark') && theme === 'light';
         return (
           <button
             key={value}
