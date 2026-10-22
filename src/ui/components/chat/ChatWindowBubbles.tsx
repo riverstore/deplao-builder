@@ -341,6 +341,24 @@ export function FileBubble({msg, isSent}: { msg: any; isSent: boolean }) {
         }
     };
 
+    /** Lưu về máy: hộp thoại chọn nơi lưu, copy file đã tải hoặc tải từ link */
+    const handleSaveAs = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            const res = await ipc.file?.saveAs({
+                localPath: localFilePath || undefined,
+                remoteUrl: !localFilePath && fileHref ? fileHref : undefined,
+                defaultName: fileTitle || 'file',
+                zaloId: msg.owner_zalo_id || undefined,
+            });
+            if (res?.canceled) return;
+            if (res?.success) useAppStore.getState().showNotification('Đã lưu file về máy', 'success');
+            else useAppStore.getState().showNotification(res?.error || 'Không lưu được file', 'error');
+        } catch (err: any) {
+            useAppStore.getState().showNotification(err?.message || 'Không lưu được file', 'error');
+        }
+    };
+
     const formatFileSize = (bytes: string | number): string => {
         const n = typeof bytes === 'string' ? parseInt(bytes) : bytes;
         if (!n || isNaN(n)) return '';
@@ -433,7 +451,17 @@ export function FileBubble({msg, isSent}: { msg: any; isSent: boolean }) {
                             </svg>
                         </button>
                     )}
-                    <button onClick={handleOpen} disabled={opening || !canOpen} title={hasLocal ? 'Mở file' : 'Tải xuống'}
+                    {canOpen && (
+                        <button onClick={handleSaveAs} title="Lưu về máy…"
+                                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors text-muted-foreground hover:text-foreground hover:bg-foreground/10">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                        </button>
+                    )}
+                    <button onClick={handleOpen} disabled={opening || !canOpen} title={hasLocal ? 'Mở file' : 'Mở link'}
                             className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-40 text-muted-foreground hover:text-foreground hover:bg-foreground/10">
                         {hasLocal
                             ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"

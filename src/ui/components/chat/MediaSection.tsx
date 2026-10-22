@@ -12,6 +12,7 @@
  * dòng đã nhận), hiện "Không tải được — Thử lại" (tự thử lại theo backoff / khi cuộn tới cuối / kết nối lại);
  * xem trước giữ các ô đang có. Trình xem ảnh mở qua bộ sưu tập phân trang (MediaGalleryViewer) như khung chat.
  */
+import { useAppStore } from '@/store/appStore';
 import { fileTypeIconSrc } from '@/lib/chat/fileTypeIcons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAccountStore } from '@/store/accountStore';
@@ -882,6 +883,34 @@ function FileRow({ msg }: { msg: any }) {
           <p className="text-[11px] text-muted-foreground">{sizeStr && `${sizeStr} · `}{dateStr}</p>
         </div>
       </button>
+      {/* Lưu về máy: chọn nơi lưu */}
+      {(localPath || href) && (
+        <button
+          onClick={async () => {
+            try {
+              const res = await ipc.file?.saveAs({
+                localPath: localPath || undefined,
+                remoteUrl: !localPath && href ? href : undefined,
+                defaultName: title || 'file',
+                zaloId: msg.owner_zalo_id || undefined,
+              });
+              if (res?.canceled) return;
+              if (res?.success) useAppStore.getState().showNotification('Đã lưu file về máy', 'success');
+              else useAppStore.getState().showNotification(res?.error || 'Không lưu được file', 'error');
+            } catch (err: any) {
+              useAppStore.getState().showNotification(err?.message || 'Không lưu được file', 'error');
+            }
+          }}
+          title="Lưu về máy…"
+          className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent opacity-0 group-hover/file:opacity-100 transition-all flex-shrink-0"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </button>
+      )}
       {/* FB: download button pointing to CDN */}
       {isFB && href && (
         <button
