@@ -3,6 +3,7 @@
  * Tách ra từ ChatWindow.tsx để giảm kích thước file.
  * Các components này là phiên bản ChatWindow-specific (khác với MessageBubbles.tsx).
  */
+import { fileTypeIconSrc } from '@/lib/chat/fileTypeIcons';
 import React, {useState,} from 'react';
 import {useChatStore} from '@/store/chatStore';
 import {useAccountStore} from '@/store/accountStore';
@@ -346,40 +347,9 @@ export function FileBubble({msg, isSent}: { msg: any; isSent: boolean }) {
         return `${(n / 1024 / 1024).toFixed(2)} MB`;
     };
 
-    const getFileIconAndColor = (ext: string): { icon: string; bg: string; text: string } => {
-        const e = ext.toLowerCase();
-        if (['pdf'].includes(e)) return {icon: 'PDF', bg: 'bg-red-600', text: 'text-white'};
-        if (['doc', 'docx'].includes(e)) return {icon: 'DOC', bg: 'bg-blue-500', text: 'text-white'};
-        if (['xls', 'xlsx', 'csv'].includes(e)) return {icon: 'XLS', bg: 'bg-green-600', text: 'text-white'};
-        if (['ppt', 'pptx'].includes(e)) return {icon: 'PPT', bg: 'bg-orange-500', text: 'text-white'};
-        if (['zip', 'rar', '7z', 'tar', 'gz'].includes(e)) return {
-            icon: 'ZIP',
-            bg: 'bg-yellow-600',
-            text: 'text-white'
-        };
-        if (['mp4', 'avi', 'mov', 'mkv', 'webm'].includes(e)) return {
-            icon: 'VID',
-            bg: 'bg-purple-600',
-            text: 'text-white'
-        };
-        if (['mp3', 'wav', 'ogg', 'flac', 'm4a'].includes(e)) return {
-            icon: 'AUD',
-            bg: 'bg-pink-600',
-            text: 'text-white'
-        };
-        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(e)) return {
-            icon: 'IMG',
-            bg: 'bg-teal-600',
-            text: 'text-white'
-        };
-        if (['txt', 'log'].includes(e)) return {icon: 'TXT', bg: 'bg-foreground/5', text: 'text-foreground'};
-        return {icon: e.toUpperCase().slice(0, 3) || '...', bg: 'bg-foreground/5', text: 'text-foreground'};
-    };
-
     const sizeText = formatFileSize(fileSize);
     const hasLocal = !!localFilePath;
     const canOpen = hasLocal || !!fileHref;
-    const {icon, bg, text} = getFileIconAndColor(fileExt);
     // Telegram cho phép gửi ảnh dưới dạng document. Đây vẫn là file (có tên,
     // dung lượng và nút mở file), nhưng client Telegram hiển thị thumbnail và
     // caption thay vì biến nó thành một MessageMediaPhoto thông thường.
@@ -419,10 +389,10 @@ export function FileBubble({msg, isSent}: { msg: any; isSent: boolean }) {
                     <button
                         onClick={handleOpen}
                         disabled={opening || !canOpen}
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-[11px] ${bg} ${text} ${canOpen ? 'hover:opacity-80 cursor-pointer' : 'cursor-default opacity-60'} transition-opacity`}
-                        title={canOpen ? 'Nhấn để mở' : ''}
+                        className={`w-10 h-10 flex items-center justify-center flex-shrink-0 ${canOpen ? 'hover:opacity-80 cursor-pointer' : 'cursor-default opacity-60'} transition-opacity`}
+                        title={fileTitle}
                     >
-                        {icon}
+                        <img src={fileTypeIconSrc(fileTitle, fileExt)} alt="" className="w-10 h-10" draggable={false} />
                     </button>
                 )}
 
@@ -431,9 +401,9 @@ export function FileBubble({msg, isSent}: { msg: any; isSent: boolean }) {
                     onClick={handleOpen}
                     disabled={opening || !canOpen}
                     className="flex-1 min-w-0 text-left"
-                    title={canOpen ? 'Nhấn để mở' : ''}
+                    title={canOpen ? `${fileTitle} — nhấn để mở` : fileTitle}
                 >
-                    <p className="text-sm font-medium truncate">{fileTitle}</p>
+                    <p className="text-sm font-medium line-clamp-3 break-all">{fileTitle}</p>
                     <p className="text-xs mt-0.5 flex items-center gap-1 text-muted-foreground">
                         {sizeText && <span>{sizeText}</span>}
                         {sizeText && hasLocal && <span>•</span>}

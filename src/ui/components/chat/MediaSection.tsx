@@ -12,6 +12,7 @@
  * dòng đã nhận), hiện "Không tải được — Thử lại" (tự thử lại theo backoff / khi cuộn tới cuối / kết nối lại);
  * xem trước giữ các ô đang có. Trình xem ảnh mở qua bộ sưu tập phân trang (MediaGalleryViewer) như khung chat.
  */
+import { fileTypeIconSrc } from '@/lib/chat/fileTypeIcons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAccountStore } from '@/store/accountStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -872,11 +873,12 @@ function FileRow({ msg }: { msg: any }) {
           if (localPath) ipc.file?.openPath(localPath);
           else if (href) ipc.shell?.openExternal(href);
         }}
+        title={title}
         className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
       >
-        <span className="text-xl flex-shrink-0">{getFileIcon(ext)}</span>
+        <img src={fileTypeIconSrc(title, ext)} alt="" className="w-7 h-7 flex-shrink-0" draggable={false} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-foreground truncate font-medium">{title}</p>
+          <p className="text-sm text-foreground line-clamp-2 break-all font-medium" title={title}>{title}</p>
           <p className="text-[11px] text-muted-foreground">{sizeStr && `${sizeStr} · `}{dateStr}</p>
         </div>
       </button>
