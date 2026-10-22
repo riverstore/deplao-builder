@@ -392,7 +392,7 @@ export function FileBubble({msg, isSent}: { msg: any; isSent: boolean }) {
                         className={`w-10 h-10 flex items-center justify-center flex-shrink-0 ${canOpen ? 'hover:opacity-80 cursor-pointer' : 'cursor-default opacity-60'} transition-opacity`}
                         title={fileTitle}
                     >
-                        <img src={fileTypeIconSrc(fileTitle, fileExt)} alt="" className="w-10 h-10" draggable={false} />
+                        <img src={fileTypeIconSrc(fileTitle, fileExt)} alt="" className="file-type-icon w-10 h-10" draggable={false} />
                     </button>
                 )}
 

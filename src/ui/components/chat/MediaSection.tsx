@@ -876,7 +876,7 @@ function FileRow({ msg }: { msg: any }) {
         title={title}
         className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
       >
-        <img src={fileTypeIconSrc(title, ext)} alt="" className="w-7 h-7 flex-shrink-0" draggable={false} />
+        <img src={fileTypeIconSrc(title, ext)} alt="" className="file-type-icon w-8 h-8 flex-shrink-0" draggable={false} />
         <div className="flex-1 min-w-0">
           <p className="text-sm text-foreground line-clamp-2 break-all font-medium" title={title}>{title}</p>
           <p className="text-[11px] text-muted-foreground">{sizeStr && `${sizeStr} · `}{dateStr}</p>
