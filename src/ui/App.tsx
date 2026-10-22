@@ -22,6 +22,7 @@ import TelegramIncomingCall from './components/chat/quick/telegram/TelegramIncom
 import { UpdateNotification } from './components/common/UpdateNotification';
 import { useAppStore } from './store/appStore';
 import { usePrivacyStore } from './store/privacyStore';
+import { startZaloMutePolling } from './lib/zaloMuteSync';
 import { useAccountStore } from './store/accountStore';
 import { useChatStore } from './store/chatStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -1254,6 +1255,9 @@ export default function App() {
     return () => unsub?.();
   }, []);
 
+  // Mute đặt trên điện thoại / Zalo PC: đồng bộ lúc khởi động và định kỳ (event:connected có thể đến trước khi giao diện sẵn sàng)
+  useEffect(() => startZaloMutePolling(), []);
+
   // ─── Flash taskbar on new incoming message when window not focused ────────
   useEffect(() => {
     const unsub = window.electronAPI?.on('event:message', (data: any) => {
@@ -1264,8 +1268,9 @@ export default function App() {
         const suppressNotification = data?.message?._silentNotification === true;
         // Không flash cho tin nhắn của chính mình, hội thoại muted hoặc trong thư mục "Khác"
         if (isSelf || suppressNotification) return;
-        const { isMuted, isInOthers } = useAppStore.getState();
-        if (isMuted(zaloId, threadId) || isInOthers(zaloId, threadId)) return;
+        const { isMuted, isInOthers, getNotifSettingsForAccount } = useAppStore.getState();
+        if (isInOthers(zaloId, threadId)) return;
+        if (isMuted(zaloId, threadId) && !getNotifSettingsForAccount(zaloId).flashMuted) return;
         window.electronAPI?.app?.flashFrame?.(true);
       }
     });
@@ -1289,12 +1294,14 @@ export default function App() {
       // Check mute/others
       const appState = useAppStore.getState();
       const { notifSettings, isMuted, isInOthers } = appState;
-      if (isMuted(accountId, threadId) || isInOthers(accountId, threadId)) return;
+      if (isInOthers(accountId, threadId)) return;
+      const muted = isMuted(accountId, threadId);
 
-      // Flash taskbar when window not focused
-      if (!isWindowFocusedRef.current) {
+      // Flash taskbar when window not focused (hội thoại mute chỉ nháy khi bật tùy chọn flashMuted)
+      if (!isWindowFocusedRef.current && (!muted || appState.getNotifSettingsForAccount(accountId).flashMuted)) {
         window.electronAPI?.app?.flashFrame?.(true);
       }
+      if (muted) return;
 
       // Check if this thread is currently active and window is focused → skip notification
       const { activeThreadId } = useChatStore.getState();

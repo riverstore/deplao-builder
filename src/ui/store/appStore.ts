@@ -8,8 +8,8 @@ type AppView = 'chat' | 'friends' | 'settings' | 'dashboard' | 'crm' | 'workflow
 export type AppTheme = 'dark' | 'light';
 /** Lựa chọn của người dùng; 'system' theo chế độ sáng/tối của hệ điều hành */
 export type AppThemeMode = AppTheme | 'system';
-export type AppPalette = 'blue' | 'green' | 'purple' | 'amoled';
-export const APP_PALETTES: AppPalette[] = ['blue', 'green', 'purple', 'amoled'];
+export type AppPalette = 'blue' | 'green' | 'purple' | 'amoled' | 'zadark';
+export const APP_PALETTES: AppPalette[] = ['blue', 'green', 'purple', 'amoled', 'zadark'];
 
 export interface GroupMember {
   userId: string;
@@ -54,6 +54,8 @@ export interface LabelData {
 export interface NotifSettings {
   soundEnabled: boolean;
   desktopEnabled: boolean;
+  /** Vẫn nháy taskbar (Dock trên macOS) với hội thoại đã tắt thông báo; hội thoại thường luôn nháy */
+  flashMuted: boolean;
   volume: number; // 0–1
 }
 
@@ -139,6 +141,10 @@ interface AppStore {
    * Source of truth is DB; this is just a fast read cache loaded on account switch.
    */
   mutedThreads: Record<string, Record<string, number>>;
+  /** Tắt thông báo đặt trên Zalo (điện thoại / Zalo PC): zaloId → threadId → until (0 = vĩnh viễn). Chỉ trong bộ nhớ */
+  platformMutedThreads: Record<string, Record<string, number>>;
+  /** Thay toàn bộ danh sách mute từ Zalo của một tài khoản */
+  setPlatformMuted: (zaloId: string, muted: Record<string, number>) => void;
   notifSettings: NotifSettings;
   /** Per-account notification setting overrides: zaloId -> NotifSettings */
   notifSettingsOverrides: Record<string, NotifSettings>;
@@ -353,9 +359,9 @@ const loadPalette = (): AppPalette => {
 const loadNotifSettings = (): NotifSettings => {
   try {
     const stored = JSON.parse(localStorage.getItem('app_notifSettings') || '{}');
-    return { soundEnabled: true, desktopEnabled: true, volume: 0.6, ...stored };
+    return { soundEnabled: true, desktopEnabled: true, flashMuted: false, volume: 0.6, ...stored };
   } catch {
-    return { soundEnabled: true, desktopEnabled: true, volume: 0.6 };
+    return { soundEnabled: true, desktopEnabled: true, flashMuted: false, volume: 0.6 };
   }
 };
 
@@ -484,6 +490,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   labelsVersionMap: {},
   labelsFetchedAt: {},
   mutedThreads: {},
+  platformMutedThreads: {},
   notifSettings: loadNotifSettings(),
   notifSettingsOverrides: {},
   themeMode: loadThemeMode(),
@@ -782,7 +789,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set((s) => {
       const prev = { ...(s.mutedThreads[zaloId] || {}) };
       delete prev[contactId];
-      return { mutedThreads: { ...s.mutedThreads, [zaloId]: prev } };
+      // Các nút "Bật thông báo" đều gửi bỏ tắt lên Zalo → bỏ luôn bản sao mute lấy từ Zalo
+      const platform = { ...(s.platformMutedThreads[zaloId] || {}) };
+      delete platform[contactId];
+      return {
+        mutedThreads: { ...s.mutedThreads, [zaloId]: prev },
+        platformMutedThreads: { ...s.platformMutedThreads, [zaloId]: platform },
+      };
     });
     persistFlag(zaloId, contactId, { is_muted: 0, mute_until: 0 }, () => set((s) => {
       if (previous === undefined || s.mutedThreads[zaloId]?.[contactId] !== undefined) return {};
@@ -791,11 +804,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   isMuted: (zaloId, contactId) => {
-    const until = (get().mutedThreads[zaloId] || {})[contactId];
-    if (until === undefined) return false;
-    if (until === 0) return true;          // indefinite
-    return Date.now() < until;             // timed
+    const active = (until: number | undefined) =>
+      until !== undefined && (until === 0 || Date.now() < until); // 0 = indefinite, >0 = timed
+    return active((get().mutedThreads[zaloId] || {})[contactId])
+      || active((get().platformMutedThreads[zaloId] || {})[contactId]);
   },
+
+  setPlatformMuted: (zaloId, muted) => set((s) => ({
+    platformMutedThreads: { ...s.platformMutedThreads, [zaloId]: muted },
+  })),
 
   getMuteUntil: (zaloId, contactId) => (get().mutedThreads[zaloId] || {})[contactId],
 
@@ -817,6 +834,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     const updated: NotifSettings = {
       soundEnabled: settings.soundEnabled ?? current.soundEnabled ?? true,
       desktopEnabled: settings.desktopEnabled ?? current.desktopEnabled ?? true,
+      flashMuted: settings.flashMuted ?? current.flashMuted ?? false,
       volume: settings.volume ?? current.volume ?? 0.6,
     };
     set((s) => ({

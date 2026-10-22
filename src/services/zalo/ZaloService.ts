@@ -1253,6 +1253,12 @@ export default class ZaloService {
         }
     }
 
+    /** Danh sách hội thoại đã tắt thông báo trên Zalo (đặt từ điện thoại / Zalo PC) */
+    public async getMute(): Promise<any> {
+        if (!this.api) throw new Error("API not initialized");
+        return await this.api.getMute();
+    }
+
     public async getLabels(): Promise<any> {
         if (!this.api) throw new Error("API not initialized.");
         try {

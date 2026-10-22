@@ -421,6 +421,12 @@ export default function Settings() {
                         }}
                       />
                       <ToggleRow
+                        title="Nháy taskbar cả với hội thoại đã tắt thông báo"
+                        desc="Tắt: chỉ hội thoại thường mới nháy biểu tượng Deplao trên taskbar"
+                        value={settings.flashMuted}
+                        onChange={(v) => saveSettings({ flashMuted: v })}
+                      />
+                      <ToggleRow
                         title="Âm thanh thông báo"
                         desc="Phát tiếng khi nhận tin nhắn mới"
                         value={settings.soundEnabled}
@@ -455,7 +461,7 @@ export default function Settings() {
                   );
                 })()}
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  * Thông báo không hiện với những hội thoại đã tắt thông báo.<br />
+                  * Thông báo (kể cả nháy taskbar) không hiện với những hội thoại đã tắt thông báo trên Deplao.<br />
                   * <strong>Windows:</strong> Kiểm tra quyền trong Settings &gt; Notifications.<br />
                   * <strong>macOS:</strong> Kiểm tra trong System Settings &gt; Notifications &gt; Deplao.<br />
                   * Khi tắt notification ở cấp hệ điều hành, âm thanh cũng sẽ bị tắt theo.

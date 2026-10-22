@@ -192,7 +192,8 @@ function wrap(channel: string, fn: (service: ZaloService, params: any) => Promis
             // let stale credentials from that UI work be redirected to the
             // only active Zalo connection; it is both misleading and can call
             // the wrong account while a non-Zalo channel is syncing.
-            const requiresStrictAccount = channel === 'zalo:getUserInfo' || channel === 'zalo:refreshContactsInfo';
+            // getMute trả danh sách theo tài khoản: rơi về "kết nối duy nhất" sẽ gán mute nhầm tài khoản
+            const requiresStrictAccount = channel === 'zalo:getUserInfo' || channel === 'zalo:refreshContactsInfo' || channel === 'zalo:getMute';
             const explicitAccountId = getExplicitAccountId(auth);
             let zaloId = resolveZaloId(auth, !requiresStrictAccount);
 
@@ -591,6 +592,8 @@ export function registerZaloIpc() {
     wrap('zalo:setMute', (s, p) =>
         s.setMute(p.threadId, p.threadType ?? 0, p.duration, p.action)
     );
+
+    wrap('zalo:getMute', (s) => s.getMute());
 
     // ─── Labels ───────────────────────────────────────────────────────────
     // getLabels dùng HTTP thuần, không cần WS connection active

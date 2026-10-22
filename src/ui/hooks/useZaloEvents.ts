@@ -16,6 +16,7 @@ import { messageQueue } from '@/lib/MessageQueue';
 import { fetchAllAliases } from '../lib/zaloAliasUtils';
 import { channelSupports, type Channel } from '@/../configs/channelConfig';
 import { sendSeenForThread } from '@/lib/sendSeenHelper';
+import { syncZaloMutes } from '@/lib/zaloMuteSync';
 import * as channelIpc from '@/lib/channelIpc';
 import { CHANNEL, isZalo, isFacebook, isTelegram, isTelegramForumGeneral } from '@/lib/channelHelper';
 import { playNotificationSound, showDesktopNotification, requestNotificationPermission } from '../utils/NotificationService';
@@ -1687,6 +1688,8 @@ export function useZaloEvents() {
       if (!data?.zaloId) return;
       updateAccountStatus(data.zaloId, true, true);
       updateListenerActive(data.zaloId, true);
+      // Hội thoại tắt thông báo trên điện thoại / Zalo PC cũng không nháy, không kêu trên Deplao
+      void syncZaloMutes(data.zaloId);
       // Zalo My Documents: ID hội thoại có sẵn trong phiên đăng nhập → danh sách ghim đúng hội thoại đó
       const send2meId = data.accountInfo?.send2meId ? String(data.accountInfo.send2meId) : '';
       if (send2meId) {
