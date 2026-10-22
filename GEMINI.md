@@ -141,6 +141,12 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 - `hideTyping`: chặn trong `sendTypingEvent` (`MessageInput.tsx`). `hideSeen`: chặn ở `sendSeenHelper.ts`, `markConversationRead.ts` (Zalo vẫn `removeUnreadMark`), `channelIpc.markAsRead`. Workflow/API vẫn gửi đã xem nếu được cấu hình (cố ý).
 - Không có công tắc "Ẩn Đã nhận": app không tự gửi `sendDeliveredEvent`.
 
+### Commit 7 — bảng màu ZaDark, tùy chọn nháy taskbar, đồng bộ tắt thông báo từ Zalo
+
+- Bảng màu `zadark` (`appStore.APP_PALETTES`, `AppearanceControls.tsx`, khối `html[data-theme="dark"][data-palette="zadark"]` trong `index.css`): giá trị màu Dark Mode tông xám than của ZaDark (`src/core/scss/zadark.scss`), chỉ lấy mã màu, không chép SCSS. Chỉ giao diện Tối.
+- `NotifSettings.flashMuted` (mặc định false = hội thoại mute không nháy; hội thoại thường luôn nháy, lưu chung + theo tài khoản như các tùy chọn thông báo khác): kiểm tra ở mọi chỗ gọi `flashFrame(true)` (`App.tsx` cho `event:message` và `fb:onMessage`, `useZaloEvents.ts` cho lời mời kết bạn). Công tắc ở Cài đặt → Thông báo.
+- Đồng bộ mute từ Zalo: `ZaloService.getMute` + IPC `zalo:getMute` (khớp tài khoản chặt `requiresStrictAccount`, tránh gán mute nhầm tài khoản) → `src/ui/lib/zaloMuteSync.ts` (`duration` giây, `-1` = vĩnh viễn, `startTime` giây) → `appStore.platformMutedThreads` (chỉ trong bộ nhớ, làm mới mỗi `event:connected`). `isMuted` kiểm tra cả `mutedThreads` (mute trên Deplao, lưu DB) và `platformMutedThreads`; `clearMuted` xóa cả hai (các nút "Bật thông báo" đều gửi `setMute action 3` lên Zalo).
+
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
 - `listener.requestOldMessages` của zca-js **chỉ trả các tin phiên web chưa nhận**, không phải API lịch sử; lật trang bằng `lastId` (kể cả gửi `first:false`) Zalo không trả lời. Đã bỏ hướng này.
