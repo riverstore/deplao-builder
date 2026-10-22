@@ -223,6 +223,13 @@ html[data-theme="dark"][data-palette="zadark"] {
 html[data-custom-font="true"] body {
   font-family: var(--app-font-family), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
+.file-type-icon { object-fit: contain; }
+/* Icon file sậm màu chìm trên nền tối → đặt trên nền trắng bo góc (giao diện Sáng giữ nguyên) */
+html[data-theme="dark"] .file-type-icon {
+  background: rgb(255 255 255 / 0.92);
+  border-radius: 6px;
+  padding: 2px;
+}
 .chat-msg-text {
   font-size: var(--chat-font-size, inherit);
 }
