@@ -456,6 +456,7 @@ declare global {
         getMessageHistory: (params: any) => Promise<any>;
         getGroupChatHistory: (params: any) => Promise<any>;
         getPinConversations: (auth: any) => Promise<any>;
+        getMute: (auth: any) => Promise<any>;
         setPinConversation: (params: any) => Promise<any>;
         setMute: (params: any) => Promise<any>;
         keepAlive: (auth: any) => Promise<any>;

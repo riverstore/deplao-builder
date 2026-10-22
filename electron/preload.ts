@@ -184,6 +184,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getPinConversations: (auth: any) => ipcRenderer.invoke('zalo:getPinConversations', { auth }),
     setPinConversation: (params: any) => ipcRenderer.invoke('zalo:setPinConversation', params),
     setMute: (params: any) => ipcRenderer.invoke('zalo:setMute', params),
+    getMute: (auth: any) => ipcRenderer.invoke('zalo:getMute', { auth }),
     keepAlive: (auth: any) => ipcRenderer.invoke('zalo:keepAlive', { auth }),
     getLabels: (params: any) => ipcRenderer.invoke('zalo:getLabels', params),
     updateLabels: (params: any) => ipcRenderer.invoke('zalo:updateLabels', params),

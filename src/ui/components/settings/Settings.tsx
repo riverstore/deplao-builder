@@ -440,6 +440,12 @@ export default function Settings() {
                         }}
                       />
                       <ToggleRow
+                        title="Nháy taskbar cả với hội thoại đã tắt thông báo"
+                        desc="Tắt: chỉ hội thoại thường mới nháy biểu tượng Deplao trên taskbar"
+                        value={settings.flashMuted}
+                        onChange={(v) => saveSettings({ flashMuted: v })}
+                      />
+                      <ToggleRow
                         title="Âm thanh thông báo"
                         desc="Phát tiếng khi nhận tin nhắn mới"
                         value={settings.soundEnabled}
