@@ -649,6 +649,17 @@ function NotificationsPage() {
             </>
           )}
         />
+        <SettingsRow
+          title="Nháy thanh tác vụ khi tắt thông báo"
+          description="Nháy biểu tượng Deplao dưới thanh taskbar kể cả khi hội thoại đã tắt thông báo."
+          control={(
+            <Switch
+              aria-label="Nháy thanh tác vụ khi tắt thông báo"
+              checked={!!settings.flashMuted}
+              onCheckedChange={(v) => saveSettings({ flashMuted: v })}
+            />
+          )}
+        />
       </SettingsSection>
 
       <SettingsSection title="Thông báo trong app" description="Thẻ tin nhắn mới ở góc trên bên phải khi đang dùng app." flush bodyClassName="p-2">
