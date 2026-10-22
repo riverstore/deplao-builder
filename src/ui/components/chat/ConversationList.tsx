@@ -3251,7 +3251,12 @@ export default function ConversationList() {
                         }
                         const preview = formatLastMessage(contact.last_message);
                         if (typeof preview !== 'string') {
-                          return <><img src={preview.iconSrc} alt="" className="file-type-icon w-6 h-6 inline-block align-middle -my-1.5 mr-1.5" draggable={false} />{preview.fileName}</>;
+                          return (
+                            <span className="flex items-center gap-1.5 min-w-0">
+                              <img src={preview.iconSrc} alt="" className="file-type-icon w-6 h-6 flex-shrink-0 block" draggable={false} />
+                              <span className="truncate" title={preview.fileName}>{preview.fileName}</span>
+                            </span>
+                          );
                         }
                         return preview || (contact.phone ? `${contact.phone}` : '');
                       })()}
