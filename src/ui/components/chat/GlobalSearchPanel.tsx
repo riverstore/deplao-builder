@@ -13,6 +13,7 @@ import { Spinner } from '@/components/common/PageLoading';
 import { ChatIcon, CloseIcon} from '@/components/common/icons';
 import { lookupZaloUserByPhone } from '@/lib/chat/zaloPhoneLookup';
 import PeerInitials from '@/components/common/PeerInitials';
+import { foldSearchText } from '../../../shared/searchFold';
 
 // ─── Vietnamese-aware normalization for fuzzy matching ────────────────────────
 function normalizeStr(s: string): string {
@@ -26,7 +27,8 @@ function normalizeStr(s: string): string {
 
 // Build a stripped version (no combining diacritics) for fallback matching
 function stripDiacritics(s: string): string {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  // foldSearchText x\u1eed l\u00fd c\u1ea3 \u0111/\u0110 (kh\u00f4ng ph\u00e2n r\u00e3 \u0111\u01b0\u1ee3c b\u1eb1ng NFD): "dao" ph\u1ea3i ra "\u0110\u00e0o"
+  return foldSearchText(s);
 }
 
 function matchQuery(haystack: string, needle: string): boolean {
