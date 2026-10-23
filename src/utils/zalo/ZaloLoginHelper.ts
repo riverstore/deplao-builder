@@ -1296,6 +1296,8 @@ class ZaloLoginHelper {
         // Đã đọc trên điện thoại / Zalo PC: cmd 504 / 524 (zca-js chưa phát sự kiện) → bỏ số chưa đọc trong Deplao
         attachZaloReadElsewhere(zaloId, connection.api, (items) => EventBroadcaster.broadcastZaloReadElsewhere(zaloId, items));
 
+        // Lần kết nối đầu (mở lại app) cũng cần lấy tin nhận lúc app tắt: cipher_key sẽ gọi requestOldMessages
+        ZaloLoginHelper.pendingCatchUp.add(zaloId);
         listener.start({ retryOnClose: true });
         ConnectionManager.setListenerStarted(zaloId, true);
         Logger.log(`[ZaloLoginHelper] ${zaloId} 🎧 Listener started (tự nối lại: ${describeZaloSocketRetry(connection.api)})`);
