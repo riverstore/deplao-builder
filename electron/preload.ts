@@ -88,6 +88,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openInApp: (url: string) => ipcRenderer.invoke('shell:openInApp', url),
   },
 
+  // ─── Cài đặt giao diện lưu trong DB (xem src/ui/lib/uiPrefs.ts) ────
+  uiPrefs: {
+    getAll: () => ipcRenderer.invoke('uiPrefs:getAll'),
+    set: (key: string, value: string) => ipcRenderer.invoke('uiPrefs:set', { key, value }),
+  },
+
   // ─── Util ───────────────────────────────────────────────────────
   util: {
     fetchUrl: (args: { url: string }) => ipcRenderer.invoke('util:fetchUrl', args),
