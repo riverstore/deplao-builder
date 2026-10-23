@@ -158,6 +158,10 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 
 - Cài đặt giao diện lưu cả vào DB (portable, dùng chung `npm run dev` và bản build — `localStorage` gắn với địa chỉ trang: dev `http://localhost:27799`, build `file://` nên hai bên không thấy nhau): `src/ui/lib/uiPrefs.ts` (`savePref` ghi localStorage + IPC `uiPrefs:set`; `hydrateUiPrefs` đọc `uiPrefs:getAll` lúc khởi động, DB có thì ghi đè localStorage, DB chưa có thì đẩy localStorage lên) → `appStore.rehydrateAppUiPrefs` + `privacyStore.rehydratePrivacy`. IPC ở `databaseIpc.ts` (danh sách khóa cố định `UI_PREF_KEYS`, lưu `app_settings` với tiền tố `ui_pref.`; workspace nhân viên chỉ dùng localStorage). Thêm cài đặt giao diện mới: thêm khóa vào CẢ `UI_PREF_KEYS` ở `uiPrefs.ts` và `databaseIpc.ts`, và ghi bằng `savePref`.
 
+- Tooltip tên người react (`ChatWindow.tsx` `reactorTooltip`, gắn `title` cho chip reaction; alias ưu tiên như popup `ReactionPopup`).
+- Alias bị "reset" về tên họ tự đặt: `contactList` trong `ChatWindow.tsx` chỉ là các hội thoại đã tải vào store (~200), nên người gửi trong nhóm ngoài danh sách không có `alias`. Sửa: `extraContacts` tra DB qua `DataAccessor.getConversationsByIds` cho người gửi còn thiếu, `getContact` tra thêm bảng này.
+- Mở lại app thiếu tin: `ZaloLoginHelper.setupEventListeners` thêm `pendingCatchUp` trước `listener.start()` để lần kết nối đầu cũng gọi `requestOldMessages` (sau `cipher_key`); tin về qua event `old_messages` (lưu silent, không cộng chưa đọc).
+
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
 - `listener.requestOldMessages` của zca-js **chỉ trả các tin phiên web chưa nhận**, không phải API lịch sử; lật trang bằng `lastId` (kể cả gửi `first:false`) Zalo không trả lời. Đã bỏ hướng này.
