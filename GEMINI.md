@@ -168,6 +168,8 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 
 - Tải nhiều ảnh/file: IPC `file:saveMany` (`electron/ipc/fileIpc.ts`, chọn một thư mục, tên trùng thêm " (2)", chỉ giữ tên file) dùng chung `writeSourceToDest` với `file:saveAs`. Giao diện: `getSaveItem` / `saveMessagesToFolder` (`MessageContextMenu.tsx`); mục "Lưu cả album (N ảnh)" trong menu chuột phải (prop `albumMsgs` = `groupedFirstMsgs[msg_id]`) và nút "Tải về" ở thanh chọn nhiều tin của `ChatWindow.tsx`. Trước đây menu chỉ lưu đúng 1 ảnh được bấm và thanh chọn không có nút tải.
 
+- Biệt danh hiện lại tên mặc định khi có tin mới: (1) hội thoại chưa có trong store (ngoài ~200 đã tải) → `updateContact` dựng mục mới chỉ có tên Zalo; `useZaloEvents` (handler `event:message`) nay tra DB (`getConversationsByIds`) lấy `alias` cho mục mới. (2) `aliasMap` (module `useZaloEvents`) chỉ nạp lúc kết nối nên cũ sau khi sửa/xóa biệt danh; handler tin nhắn không còn ghi đè `alias` từ `aliasMap` cho hội thoại đã có. DB không bao giờ ghi đè cột `alias` khi nhận tin (các UPSERT contacts không đụng alias).
+
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
 - `listener.requestOldMessages` của zca-js **chỉ trả các tin phiên web chưa nhận**, không phải API lịch sử; lật trang bằng `lastId` (kể cả gửi `first:false`) Zalo không trả lời. Đã bỏ hướng này.
