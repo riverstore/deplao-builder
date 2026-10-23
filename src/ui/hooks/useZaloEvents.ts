@@ -1365,7 +1365,6 @@ export function useZaloEvents() {
         ...(isSelf ? {} : {
           ...(realName ? { display_name: realName } : {}),
           ...(senderAvatar ? { avatar_url: senderAvatar } : {}),
-          ...(alias ? { alias } : {}),
         }),
         ...(replyState !== undefined ? { is_replied: replyState } : {}),
         contact_type: isGroup ? 'group' : 'user',
@@ -1373,6 +1372,18 @@ export function useZaloEvents() {
         last_message: lastMsgPreview,
         last_message_time: timestamp,
       });
+      // Hội thoại chưa có trong store (cũ, ngoài ~200 hội thoại đã tải): mục vừa dựng từ tin chỉ có tên Zalo → lấy biệt danh
+      // trong DB. Không ghi lại alias từ aliasMap cho hội thoại đã có: aliasMap chỉ nạp lúc kết nối nên cũ sau khi người
+      // dùng sửa / xóa biệt danh (mỗi tin mới sẽ trả về biệt danh cũ).
+      if (!existingContact && !isSelf) {
+        DataAccessor.getConversationsByIds(zaloId, [threadId]).then((res: any) => {
+          const savedAlias = String(res?.items?.[0]?.alias || '');
+          if (!savedAlias) return;
+          aliasMap.set(`${zaloId}__${threadId}`, savedAlias);
+          const current = (useChatStore.getState().contacts[zaloId] || []).find(c => c.contact_id === threadId);
+          if (current && !current.alias) useChatStore.getState().updateContact(zaloId, { contact_id: threadId, alias: savedAlias });
+        }).catch(() => {});
+      }
       // Verify update
       if (!catchUp) {
         const updatedContact = (useChatStore.getState().contacts[zaloId] || []).find(c => c.contact_id === threadId);
