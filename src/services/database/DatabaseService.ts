@@ -7317,10 +7317,12 @@ class DatabaseService {
 
             // Apply search filter
             if (search?.trim()) {
-                const q = search.toLowerCase();
+                // Tên / biệt danh so sánh không dấu (foldSearchText: cả đ/Đ), số điện thoại và mã theo chữ gõ
+                const q = search.trim().toLowerCase();
+                const folded = foldSearchText(search);
                 all = all.filter(c =>
-                    (c.display_name || '').toLowerCase().includes(q) ||
-                    (c.alias || '').toLowerCase().includes(q) ||
+                    foldSearchText(c.display_name).includes(folded) ||
+                    foldSearchText(c.alias).includes(folded) ||
                     (c.phone || '').toLowerCase().includes(q) ||
                     c.contact_id.toLowerCase().includes(q)
                 );
