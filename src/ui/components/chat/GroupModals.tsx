@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { foldSearchText } from '../../../shared/searchFold';
 import { useShallow } from 'zustand/react/shallow';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore, LabelData } from '@/store/appStore';
@@ -411,7 +412,7 @@ export function CreateGroupModal({ onClose, onCreated, preSelected, accountId }:
 
   const matchFilter = (name: string, phone: string, id: string) => {
     const q = search.toLowerCase();
-    if (q && !name.toLowerCase().includes(q) && !phone.includes(q) && !id.includes(q)) return false;
+    if (q && !foldSearchText(name).includes(foldSearchText(search)) && !phone.includes(q) && !id.includes(q)) return false;
     if (selectedLabelKeys.size > 0) {
       let inAny = false;
       for (const key of selectedLabelKeys) {
@@ -741,7 +742,7 @@ export function SendCardModal({ threadId, threadType, onClose }: {
 
   const matchFilter = (name: string, phone: string, id: string) => {
     const q = search.toLowerCase();
-    if (q && !name.toLowerCase().includes(q) && !phone.includes(q) && !id.includes(q)) return false;
+    if (q && !foldSearchText(name).includes(foldSearchText(search)) && !phone.includes(q) && !id.includes(q)) return false;
     if (selectedLabelKeys.size > 0) {
       let inAny = false;
       for (const key of selectedLabelKeys) {
@@ -964,7 +965,7 @@ export function AddMemberToGroupModal({ groupId, groupName, existingMemberIds = 
     if (existingMemberIds.includes(f.userId)) return false;
     const q = search.toLowerCase();
     if (!q) return true;
-    return (f.displayName || f.zaloName || '').toLowerCase().includes(q) ||
+    return foldSearchText(f.displayName || f.zaloName || '').includes(foldSearchText(search)) ||
       (f.phoneNumber || '').includes(q) || (f.userId || '').includes(q);
   });
 

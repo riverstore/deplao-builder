@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { foldSearchText } from '../../../../shared/searchFold';
 import DataAccessor, { isReadFailure } from '@/lib/data/DataAccessor';
 import ipc, { buildZaloAuth } from '@/lib/ipc';
 import { useAccountStore } from '@/store/accountStore';
@@ -874,12 +875,12 @@ function ZaloGroupMembersTab() {
   // ── Filtered lists ────────────────────────────────────────────────────────
   const filteredGroups = groups.filter(g =>
     !searchGroup.trim() ||
-    g.display_name.toLowerCase().includes(searchGroup.toLowerCase()) ||
+    foldSearchText(g.display_name).includes(foldSearchText(searchGroup)) ||
     g.contact_id.includes(searchGroup)
   );
   const filteredMembers = members.filter(m =>
     !searchMember.trim() ||
-    m.display_name.toLowerCase().includes(searchMember.toLowerCase()) ||
+    foldSearchText(m.display_name).includes(foldSearchText(searchMember)) ||
     m.member_id.includes(searchMember)
   );
 
@@ -2249,7 +2250,7 @@ function TelegramGroupMembersTab({ channel }: { channel: 'telegram_user' | 'tele
     showCampaignPicker && campaignsLoadFailed ? loadPickerCampaigns() : Promise.resolve(false),
   ]));
 
-  const visibleGroups = groups.filter(g => (g.display_name || g.contact_id).toLowerCase().includes(query.toLowerCase()));
+  const visibleGroups = groups.filter(g => foldSearchText(g.display_name || g.contact_id).includes(foldSearchText(query)));
   const visibleMembers = members.filter(member => {
     const text = `${member.firstName || ''} ${member.lastName || ''} ${member.username || ''} ${member.id || ''}`.toLowerCase();
     return text.includes(memberQuery.toLowerCase());

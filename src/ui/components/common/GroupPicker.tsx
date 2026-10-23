@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { foldSearchText } from '../../../shared/searchFold';
 import { useAccountStore } from '@/store/accountStore';
 import { useAppStore } from '@/store/appStore';
 import ipc, { buildZaloAuth } from '@/lib/ipc';
@@ -160,7 +161,7 @@ const GroupPicker: React.FC<GroupPickerProps> = ({
   };
 
   const filteredGroups = searchTerm.trim()
-    ? groups.filter(g => g.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    ? groups.filter(g => foldSearchText(g.name).includes(foldSearchText(searchTerm)))
     : groups;
 
   const isTemplateValue = value?.startsWith('{{');
