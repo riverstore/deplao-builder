@@ -156,10 +156,13 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 - Gộp nút Sáng/Tối cũ vào nút Tùy chỉnh nhanh (`TopBar.tsx` bỏ nút theme riêng).
 - `.github/README.md`: README cho bản chỉnh sửa (GitHub ưu tiên file này hơn `README.md` gốc nên không xung đột khi rebase). `CLAUDE.md` (đã nằm trong `.gitignore` của tác giả) chỉ có trên máy, trỏ tới file này.
 
+- Cài đặt giao diện lưu cả vào DB (portable, dùng chung `npm run dev` và bản build — `localStorage` gắn với địa chỉ trang: dev `http://localhost:27799`, build `file://` nên hai bên không thấy nhau): `src/ui/lib/uiPrefs.ts` (`savePref` ghi localStorage + IPC `uiPrefs:set`; `hydrateUiPrefs` đọc `uiPrefs:getAll` lúc khởi động, DB có thì ghi đè localStorage, DB chưa có thì đẩy localStorage lên) → `appStore.rehydrateAppUiPrefs` + `privacyStore.rehydratePrivacy`. IPC ở `databaseIpc.ts` (danh sách khóa cố định `UI_PREF_KEYS`, lưu `app_settings` với tiền tố `ui_pref.`; workspace nhân viên chỉ dùng localStorage). Thêm cài đặt giao diện mới: thêm khóa vào CẢ `UI_PREF_KEYS` ở `uiPrefs.ts` và `databaseIpc.ts`, và ghi bằng `savePref`.
+
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
 - `listener.requestOldMessages` của zca-js **chỉ trả các tin phiên web chưa nhận**, không phải API lịch sử; lật trang bằng `lastId` (kể cả gửi `first:false`) Zalo không trả lời. Đã bỏ hướng này.
 - Tác giả (từ v26.10.1) đã bỏ nút/IPC `login:requestOldMessages` và làm tính năng **đồng bộ tin nhắn từ điện thoại** (`src/services/zalo/mobileSync/`, `MobileSyncButton.tsx`) — dùng tính năng đó khi cần lịch sử.
 - Zalo chỉ cho 1 phiên web/tài khoản: mở `chat.zalo.me` cùng lúc với app sẽ làm app mất kết nối (mã 3000).
+- Lưu ý: `DataAccessor.setSetting/getSetting` gọi `window.electronAPI.db.setSetting` nhưng preload KHÔNG có hàm này nên im lặng không lưu gì (ví dụ `sidebar_width` của tác giả); đừng dùng cho cài đặt mới, dùng `uiPrefs`.
 - `npm install` báo nhiều lỗ hổng (`npm audit`) — chưa xử lý, đừng chạy `npm audit fix --force` (dễ làm hỏng app).
 - Ý tưởng app Android đã bàn: khả thi nhất là app client gọi REST/Socket tới máy Boss (chế độ employee có sẵn: `src/ui/lib/data/DataAccessor.ts`, `src/services/http/HttpRelayService.ts`), không chạy toàn bộ backend trên điện thoại.

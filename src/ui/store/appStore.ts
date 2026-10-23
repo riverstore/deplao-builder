@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { savePref } from '../lib/uiPrefs';
 import { useAccountStore } from './accountStore';
 import { useEmployeeStore } from './employeeStore';
 import DataAccessor, { isReadFailure } from '@/lib/data/DataAccessor';
@@ -818,7 +819,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setNotifSettings: (settings) => set((s) => {
     const updated = { ...s.notifSettings, ...settings };
-    try { localStorage.setItem('app_notifSettings', JSON.stringify(updated)); } catch {}
+    savePref('app_notifSettings', JSON.stringify(updated));
     return { notifSettings: updated };
   }),
 
@@ -857,12 +858,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   setTheme: (theme) => {
-    try { localStorage.setItem('app_theme', theme); } catch {}
+    savePref('app_theme', theme);
     set({ theme, themeMode: theme });
   },
 
   setThemeMode: (mode) => {
-    try { localStorage.setItem('app_theme', mode); } catch {}
+    savePref('app_theme', mode);
     set({ themeMode: mode, theme: resolveTheme(mode) });
   },
 
@@ -873,24 +874,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   setPalette: (palette) => {
-    try { localStorage.setItem('app_palette', palette); } catch {}
+    savePref('app_palette', palette);
     set({ palette });
   },
 
   setFontFamily: (family) => {
     const name = family.trim().replace(/\s+/g, ' ');
-    try { localStorage.setItem('app_font_family', name); } catch {}
+    savePref('app_font_family', name);
     set({ fontFamily: name });
   },
 
   setChatFontSize: (px) => {
     const n = px >= CHAT_FONT_SIZE_MIN && px <= CHAT_FONT_SIZE_MAX ? px : 0;
-    try { localStorage.setItem('app_chat_font_size', String(n)); } catch {}
+    savePref('app_chat_font_size', String(n));
     set({ chatFontSize: n });
   },
 
   setFontSizeScale: (scale) => {
-    try { localStorage.setItem(FONT_SCALE_KEY, String(scale)); } catch {}
+    savePref('app_fontSizeScale', String(scale));
     set({ fontSizeScale: scale });
     document.documentElement.style.fontSize = `${16 * scale}px`;
   },
@@ -1105,3 +1106,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
     return { accountSwitcherIndex: (s.accountSwitcherIndex - 1 + total) % total };
   }),
 }));
+
+/** Đọc lại cài đặt giao diện từ localStorage (sau khi hydrateUiPrefs nạp từ DB) */
+export function rehydrateAppUiPrefs(): void {
+  const themeMode = loadThemeMode();
+  useAppStore.setState({
+    themeMode, theme: resolveTheme(themeMode), palette: loadPalette(),
+    fontFamily: loadFontFamily(), chatFontSize: loadChatFontSize(),
+    fontSizeScale: loadFontSizeScale(), notifSettings: loadNotifSettings(),
+  });
+}
