@@ -1205,6 +1205,8 @@ class ZaloLoginHelper {
         // Đồng bộ tin nhắn từ điện thoại: API pullMobile/znoise + control event "syncmsgmb"
         MobileSyncService.getInstance().attachToApi(zaloId, connection.api);
 
+        // Lần kết nối đầu (mở lại app) cũng cần lấy tin nhận lúc app tắt: cipher_key sẽ gọi requestOldMessages
+        ZaloLoginHelper.pendingCatchUp.add(zaloId);
         listener.start();
         ConnectionManager.setListenerStarted(zaloId, true);
         Logger.log(`[ZaloLoginHelper] ${zaloId} 🎧 Listener started`);
