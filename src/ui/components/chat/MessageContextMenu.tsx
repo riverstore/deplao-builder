@@ -16,6 +16,8 @@ interface MessageContextMenuProps {
   msg: any;
   /** Album: the photo that was right-clicked (image actions + star act on it, like Zalo). */
   mediaMsg?: any;
+  /** Album: toàn bộ ảnh trong cùng nhóm (≥ 2) → hiện "Lưu cả album" */
+  albumMsgs?: any[];
   isSent: boolean;
   isGroupAdmin?: boolean; // trưởng nhóm / phó nhóm được thu hồi tin nhắn của thành viên
   channelCap?: ChannelCapability;
@@ -114,8 +116,42 @@ function getDefaultFilename(msg: any): string {
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+/** Thông tin để lưu một tin file / ảnh / video ra máy; null nếu tin không có file hoặc link để lưu */
+export function getSaveItem(msg: any): { localPath?: string; remoteUrl?: string; defaultName: string; zaloId?: string } | null {
+  const isFile = isFileMsg(msg);
+  const isVideo = isVideoMsg(msg);
+  const isMedia = !isFile && !isVideo && isMediaMsg(msg);
+  if (!isFile && !isMedia && !isVideo) return null;
+  const localPath = getLocalPath(msg);
+  const remoteUrl = getRemoteUrl(msg);
+  if (!localPath && !remoteUrl) return null;
+  let defaultName = isVideo
+    ? (localPath ? localPath.replace(/.*[/\\]/, '') : `video_${msg.msg_id || Date.now()}.mp4`)
+    : getDefaultFilename(msg);
+  // Ảnh chỉ có link (chưa tải) thường không có đuôi → thêm .jpg để file lưu ra mở được
+  if (isMedia && !/\.[A-Za-z0-9]{1,5}$/.test(defaultName)) defaultName += '.jpg';
+  return { localPath: localPath || undefined, remoteUrl: remoteUrl || undefined, defaultName, zaloId: msg.owner_zalo_id || undefined };
+}
+
+/** Lưu nhiều tin (album / các tin đã chọn) vào một thư mục người dùng chọn; hiện thông báo kết quả */
+export async function saveMessagesToFolder(msgs: any[], notify?: (message: string, type: 'success' | 'error' | 'info') => void): Promise<void> {
+  const items = msgs.map(getSaveItem).filter((it): it is NonNullable<ReturnType<typeof getSaveItem>> => !!it);
+  if (items.length === 0) { notify?.('Không có ảnh / file nào để lưu trong các tin đã chọn', 'info'); return; }
+  try {
+    const res = await ipc.file?.saveMany({ items });
+    if (res?.canceled) return;
+    if (res?.success) {
+      notify?.(res.failed ? `Đã lưu ${res.saved}/${res.total} file (${res.failed} file lỗi)` : `Đã lưu ${res.saved} file`, res.failed ? 'info' : 'success');
+    } else {
+      notify?.('Lỗi lưu file: ' + (res?.error || 'không rõ'), 'error');
+    }
+  } catch (e: any) {
+    notify?.('Lỗi: ' + (e?.message || e), 'error');
+  }
+}
+
 export default function MessageContextMenu({
-  x, y, msg, mediaMsg, isSent, isGroupAdmin, channelCap, onClose, onReply, onForward, onSelectMessages, onUndo, onDelete, onDeleteFromDb, onReact, onPin, onEdit,
+  x, y, msg, mediaMsg, albumMsgs, isSent, isGroupAdmin, channelCap, onClose, onReply, onForward, onSelectMessages, onUndo, onDelete, onDeleteFromDb, onReact, onPin, onEdit,
   isStarred, onToggleStar, onSaveToMyDocuments, showNotification, recalled = false, readReceipts,
   onCancelReact, reactionChoices, myReaction = null,
 }: MessageContextMenuProps) {
@@ -376,6 +412,21 @@ export default function MessageContextMenu({
           }
           label="Lưu về máy"
           onClick={handleSaveAs}
+        />
+      )}
+
+      {/* Lưu cả album: mọi ảnh của nhóm vào một thư mục */}
+      {albumMsgs && albumMsgs.length > 1 && albumMsgs.some(m => getSaveItem(m)) && (
+        <MenuItem
+          icon={
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          }
+          label={`Lưu cả album (${albumMsgs.length} ảnh)`}
+          onClick={() => { onClose(); void saveMessagesToFolder(albumMsgs, showNotification); }}
         />
       )}
 

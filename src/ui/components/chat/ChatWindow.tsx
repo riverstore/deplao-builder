@@ -14,7 +14,7 @@ import { isMyDocumentsThread, myDocumentsThreadId } from '@/lib/chat/myDocuments
 import { groupRankLabel, peerColorIndex, telegramRankLabel } from '@/lib/chat/peerStyle';
 import PeerInitials from '@/components/common/PeerInitials';
 import { useTelegramGroupAdmins } from '@/lib/chat/telegramGroupAdmins';
-import MessageContextMenu from './MessageContextMenu';
+import MessageContextMenu, { getSaveItem, saveMessagesToFolder } from './MessageContextMenu';
 import { BubbleTime, MessageStatusContext, StatusTicks, formatBubbleTime, formatFullDateTime } from './MessageTime';
 import { inferredPeerReadTs, mergePeerReceipts, outgoingMessageStatus } from '@/lib/chat/messageStatus';
 import PinnedBar, { buildPinFromMsg, usePinnedData } from './PinnedMessages';
@@ -4198,6 +4198,16 @@ export default function ChatWindow() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
               Sao chép
             </button>
+            {msgs.some(m => selectedMsgIds.has(m.msg_id) && getSaveItem(m)) && (
+              <button onClick={() => {
+                // Tải mọi ảnh / video / file trong các tin đã chọn vào một thư mục
+                void saveMessagesToFolder(msgs.filter(m => selectedMsgIds.has(m.msg_id)), showNotification);
+              }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted text-foreground/80 hover:text-foreground text-xs transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Tải về
+              </button>
+            )}
             {channelCap.supportsForward && (
               <button onClick={() => {
                 const selectedMsgs = msgs.filter(m => selectedMsgIds.has(m.msg_id));
@@ -4356,6 +4366,7 @@ export default function ChatWindow() {
           y={contextMenu.y}
           msg={contextMenu.msg}
           mediaMsg={contextMenu.mediaMsg}
+          albumMsgs={groupedFirstMsgs[contextMenu.msg?.msg_id]}
           isSent={contextMenu.isSent}
           isGroupAdmin={contextMenu.isGroupAdmin}
           recalled={contextMenu.recalled}
