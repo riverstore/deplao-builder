@@ -164,6 +164,8 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 
 - Tìm người/nhóm: `DatabaseService.getContactsFiltered` (ô tìm danh sách hội thoại) dùng `deplao_fold` (bỏ dấu) cho `display_name` + `alias` và `escapeLikePattern`; trước đây dùng `LOWER()` của SQLite (chỉ ASCII, không bỏ dấu). Tìm toàn cục (`GlobalSearchPanel.tsx`) luôn tra DB qua `DataAccessor.searchConversations` (kể cả chế độ thường) vì danh sách hội thoại trong store chỉ ~200 hội thoại gần nhất → nhóm/bạn bè ngoài danh sách không ra.
 
+- Mọi ô tìm tên người/nhóm phải dùng `foldSearchText` (`src/shared/searchFold.ts`: bỏ dấu, xử lý cả đ/Đ, chữ thường), KHÔNG dùng `toLowerCase().includes()` hay NFD+regex `̀-ͯ` (đ/Đ không phân rã được; "thuy" không ra "Thuỷ"). Đã sửa: `getContactsFiltered`, `getCRMContacts` (chuyển tiếp tin nhắn + CRM), `GlobalSearchPanel`, `GroupModals`, `GroupPicker`, `GroupMembersTab`. Còn nhiều ô tìm khác chưa sửa (CRM campaigns, workflow, ...) — sửa khi người dùng báo.
+
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
 - `listener.requestOldMessages` của zca-js **chỉ trả các tin phiên web chưa nhận**, không phải API lịch sử; lật trang bằng `lastId` (kể cả gửi `first:false`) Zalo không trả lời. Đã bỏ hướng này.
