@@ -4576,9 +4576,13 @@ class DatabaseService {
             params.push(opts.channel);
         }
         if (opts?.search) {
-            const q = `%${opts.search.toLowerCase()}%`;
-            conditions.push("(LOWER(display_name) LIKE ? OR LOWER(alias) LIKE ? OR contact_id LIKE ? OR phone LIKE ?)");
-            params.push(q, q, q, q);
+            // SQLite LOWER() chỉ xử lý ASCII và LIKE không bỏ dấu → "nguyen" không ra "Nguyễn", "Đ"/"đ" lệch nhau.
+            // Tên và biệt danh so sánh qua deplao_fold (bỏ dấu + chữ thường); mã / số điện thoại so theo chữ gõ.
+            this.ensureFoldFunction();
+            const folded = `%${escapeLikePattern(foldSearchText(opts.search))}%`;
+            const raw = `%${escapeLikePattern(String(opts.search).trim())}%`;
+            conditions.push(`(deplao_fold(display_name) LIKE ? ESCAPE '\\' OR deplao_fold(alias) LIKE ? ESCAPE '\\' OR contact_id LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\')`);
+            params.push(folded, folded, raw, raw);
         }
         if (opts?.othersOnly) {
             conditions.push('is_in_others = 1');

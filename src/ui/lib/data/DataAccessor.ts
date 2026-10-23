@@ -427,14 +427,10 @@ export class DataAccessor {
       if (!res.success) return { ...restFail(res), items: [] as any[] };
       return { success: true, items: restItems(res) };
     }
-    const allRes = await window.electronAPI.db.getContacts(zaloId); const all = allRes?.contacts ?? allRes ?? [];
-    const q = query.toLowerCase();
-    const filtered = (all || []).filter((c: any) =>
-      (c.display_name || '').toLowerCase().includes(q) ||
-      (c.phone || '').includes(q) ||
-      (c.contact_id || '').includes(q)
-    );
-    return { success: true, items: filtered };
+    // Tìm ở DB (bỏ dấu, cả biệt danh lẫn tên gốc, gồm nhóm và bạn bè chưa có trong danh sách hội thoại đã tải)
+    const res: any = await window.electronAPI.db.getContactsFiltered({ zaloId, search: query, limit: 50 });
+    if (res?.success === false) return { success: false, error: res.error || 'Không tìm được liên hệ', items: [] as any[] };
+    return { success: true, items: res?.contacts ?? [] };
   }
 
   static async getConversationById(zaloId: string, contactId: string) {

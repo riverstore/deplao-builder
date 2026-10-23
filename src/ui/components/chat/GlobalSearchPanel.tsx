@@ -514,7 +514,8 @@ export default function GlobalSearchPanel({
 
   useEffect(() => {
     if (contactSearchTimerRef.current) clearTimeout(contactSearchTimerRef.current);
-    if (!isEmployeeMode || !query.trim() || !activeAccountId) {
+    // Tìm ở DB cho mọi chế độ: danh sách hội thoại trong bộ nhớ chỉ ~200 hội thoại gần nhất
+    if (!query.trim() || !activeAccountId) {
       serverSearchSeqRef.current += 1; // bỏ lần tìm đang chạy
       setServerContacts(NO_SERVER_CONTACTS);
       setServerSearchFailed(false);
@@ -524,7 +525,7 @@ export default function GlobalSearchPanel({
     const q = query.trim();
     contactSearchTimerRef.current = setTimeout(() => { void runServerContactSearch(accountId, q); }, 300);
     return () => { if (contactSearchTimerRef.current) clearTimeout(contactSearchTimerRef.current); };
-  }, [query, activeAccountId, isEmployeeMode, runServerContactSearch]);
+  }, [query, activeAccountId, runServerContactSearch]);
 
   // ── Contact filtering with Vietnamese normalization ──────────────────────────
   // Khoá tìm kiếm (đã bỏ dấu, cả đ → d) của từng hội thoại / bạn bè tính MỘT lần khi danh sách đổi; mỗi lần gõ chỉ
