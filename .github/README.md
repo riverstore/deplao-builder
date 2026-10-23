@@ -19,7 +19,7 @@
 - Tab **Chưa đọc** tự thêm hội thoại mới có tin chưa đọc.
 - Tìm người / nhóm **không phân biệt dấu, hoa thường**, tìm cả biệt danh lẫn tên gốc, và tìm toàn cục thấy cả nhóm / bạn bè ngoài danh sách đang tải.
 - Rê chuột vào biểu cảm của tin nhắn để xem tên người đã thả; biệt danh được hiển thị đúng ngay cả với người ngoài danh sách hội thoại đang tải.
-- Tin file hiện icon SVG theo loại file (đúng màu Word / Excel / PowerPoint / PDF), tên file dài xuống dòng và có tooltip; nút **Lưu về máy…** cho file đính kèm.
+- Tin file hiện icon SVG theo loại file (đúng màu Word / Excel / PowerPoint / PDF), tên file dài xuống dòng và có tooltip; nút **Lưu về máy…** cho file đính kèm; **Lưu cả album** (menu chuột phải) và nút **Tải về** khi chọn nhiều tin để lưu nhiều ảnh / file vào một thư mục.
 
 **Giao diện** (lấy ý tưởng từ [ZaDark](https://github.com/ncdai/zadark), tự viết lại, không chép mã)
 - Giao diện Sáng / Tối / **Theo hệ thống**; bảng màu Xanh dương, Xanh lá, Tím, Đen tuyền (AMOLED), ZaDark.
@@ -35,7 +35,7 @@
 Dựa trên Deplao v26.10.2.
 
 - **Cài đặt giao diện lưu vào DB**: không còn mất khi đổi giữa chạy thử (`npm run dev`) và bản build.
-- **Lưu về máy…** cho file đính kèm (bong bóng chat và panel đính kèm); icon file lớn hơn, đặt trên nền trắng ở giao diện Tối, tên file dài xuống dòng có tooltip.
+- **Tải nhiều ảnh / file cùng lúc** (Lưu cả album, Tải về khi chọn nhiều tin) vào một thư mục; **Lưu về máy…** cho file đính kèm (bong bóng chat và panel đính kèm); icon file lớn hơn, đặt trên nền trắng ở giao diện Tối, tên file dài xuống dòng có tooltip.
 - **Tùy chỉnh nhanh** gộp nút Sáng/Tối cũ: giao diện, bảng màu, phông chữ, cỡ chữ tin nhắn, riêng tư.
 - **Bảng màu ZaDark**, đồng bộ tắt thông báo từ Zalo, tùy chọn nháy taskbar cho hội thoại đã tắt thông báo.
 - Tab **Đã ghim**, sửa tab **Chưa đọc**; ổn định kết nối nhận tin Zalo, tự tải tin bị lỡ khi mở lại app.

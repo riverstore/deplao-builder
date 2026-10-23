@@ -32,6 +32,91 @@ function getFfmpegBin(): string {
     return 'ffmpeg'; // fallback PATH
 }
 
+interface SaveSourceParams {
+    localPath?: string;
+    remoteUrl?: string;
+    defaultName: string;
+    zaloId?: string;
+    cookiesJson?: string;
+    userAgent?: string;
+}
+
+/** Ghi nguồn file (file local đã tải, link, hoặc file trên máy Boss) ra destPath. Dùng chung cho saveAs và saveMany. */
+async function writeSourceToDest(params: SaveSourceParams, destPath: string): Promise<{ success: boolean; error?: string }> {
+    const ext = path.extname(params.defaultName) || '';
+    const extNoDot = ext.replace('.', '').toLowerCase();
+    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tiff', 'avif'];
+    const resolvedLocalPath = params.localPath ? FileStorageService.resolveAbsolutePath(params.localPath) : '';
+    const isImageExt = imageExts.includes(extNoDot);
+
+    // Try local file first - validate if it's an image
+    let localValid = false;
+    if (resolvedLocalPath && fs.existsSync(resolvedLocalPath)) {
+        if (isImageExt) {
+            const v = FileStorageService.validateImageFile(resolvedLocalPath);
+            localValid = v.valid;
+            if (!v.valid) {
+                Logger.warn(`[fileIpc] saveAs: local file corrupted (${v.reason}), will try remote`);
+                try { fs.unlinkSync(resolvedLocalPath); } catch {}
+            }
+        } else {
+            // Non-image: chỉ check size > 0
+            try { localValid = fs.statSync(resolvedLocalPath).size > 0; } catch {}
+        }
+    }
+
+    if (localValid && resolvedLocalPath) {
+        fs.copyFileSync(resolvedLocalPath, destPath);
+    } else if (params.remoteUrl) {
+        if (!params.zaloId) return { success: false, error: 'zaloId required for remote download' };
+        const tmpRelPath = await FileStorageService.downloadImage(
+            params.zaloId, params.remoteUrl, params.defaultName,
+            params.cookiesJson, params.userAgent,
+        );
+        const tmpPath = tmpRelPath ? FileStorageService.resolveAbsolutePath(tmpRelPath) : '';
+        if (tmpPath && fs.existsSync(tmpPath)) {
+            fs.copyFileSync(tmpPath, destPath);
+        } else {
+            return { success: false, error: 'Không thể tải file từ server' };
+        }
+    } else if (params.localPath) {
+        // Employee mode fallback: local path không tồn tại (path từ Boss)
+        // → chuyển thành Boss REST URL và download qua HttpClientService
+        try {
+            const { default: WorkspaceManager } = require('../../src/utils/WorkspaceManager');
+            const ws = WorkspaceManager.getInstance().getActiveWorkspace();
+            if (ws?.type === 'remote' && ws.bossUrl && ws.token) {
+                // Build boss REST URL từ local path (giống toLocalMediaUrl)
+                const normalized = params.localPath.replace(/\\/g, '/');
+                const mediaMatch = normalized.match(/(?:^|\/)(media|_uploads|avatar)\/(.+)/);
+                let bossUrl = '';
+                if (mediaMatch) {
+                    bossUrl = `${ws.bossUrl.replace(/\/+$/, '')}/api/${mediaMatch[1]}/${mediaMatch[2]}`;
+                } else {
+                    const filename = normalized.split('/').pop() || params.defaultName;
+                    bossUrl = `${ws.bossUrl.replace(/\/+$/, '')}/api/media/external/${encodeURIComponent(normalized)}`;
+                }
+                // Download từ Boss
+                const response = await fetch(bossUrl, {
+                    headers: { 'Authorization': `Bearer ${ws.token}` },
+                    signal: AbortSignal.timeout(120000),
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                fs.writeFileSync(destPath, buffer);
+            } else {
+                return { success: false, error: 'Không có nguồn file để lưu' };
+            }
+        } catch (e: any) {
+            Logger.error(`[fileIpc] saveAs employee fallback error: ${e.message}`);
+            return { success: false, error: 'Không thể tải file từ Boss: ' + e.message };
+        }
+    } else {
+        return { success: false, error: 'Không có nguồn file để lưu' };
+    }
+    return { success: true };
+}
+
 export function registerFileIpc() {
     // Init MediaCacheService cho employee mode
     try {
@@ -127,74 +212,8 @@ export function registerFileIpc() {
 
             const destPath = result.filePath;
 
-            const resolvedLocalPath = params.localPath ? FileStorageService.resolveAbsolutePath(params.localPath) : '';
-            const isImageExt = imageExts.includes(extNoDot);
-
-            // Try local file first - validate if it's an image
-            let localValid = false;
-            if (resolvedLocalPath && fs.existsSync(resolvedLocalPath)) {
-                if (isImageExt) {
-                    const v = FileStorageService.validateImageFile(resolvedLocalPath);
-                    localValid = v.valid;
-                    if (!v.valid) {
-                        Logger.warn(`[fileIpc] saveAs: local file corrupted (${v.reason}), will try remote`);
-                        try { fs.unlinkSync(resolvedLocalPath); } catch {}
-                    }
-                } else {
-                    // Non-image: chỉ check size > 0
-                    try { localValid = fs.statSync(resolvedLocalPath).size > 0; } catch {}
-                }
-            }
-
-            if (localValid && resolvedLocalPath) {
-                fs.copyFileSync(resolvedLocalPath, destPath);
-            } else if (params.remoteUrl) {
-                if (!params.zaloId) return { success: false, error: 'zaloId required for remote download' };
-                const tmpRelPath = await FileStorageService.downloadImage(
-                    params.zaloId, params.remoteUrl, params.defaultName,
-                    params.cookiesJson, params.userAgent,
-                );
-                const tmpPath = tmpRelPath ? FileStorageService.resolveAbsolutePath(tmpRelPath) : '';
-                if (tmpPath && fs.existsSync(tmpPath)) {
-                    fs.copyFileSync(tmpPath, destPath);
-                } else {
-                    return { success: false, error: 'Không thể tải file từ server' };
-                }
-            } else if (params.localPath) {
-                // Employee mode fallback: local path không tồn tại (path từ Boss)
-                // → chuyển thành Boss REST URL và download qua HttpClientService
-                try {
-                    const { default: WorkspaceManager } = require('../../src/utils/WorkspaceManager');
-                    const ws = WorkspaceManager.getInstance().getActiveWorkspace();
-                    if (ws?.type === 'remote' && ws.bossUrl && ws.token) {
-                        // Build boss REST URL từ local path (giống toLocalMediaUrl)
-                        const normalized = params.localPath.replace(/\\/g, '/');
-                        const mediaMatch = normalized.match(/(?:^|\/)(media|_uploads|avatar)\/(.+)/);
-                        let bossUrl = '';
-                        if (mediaMatch) {
-                            bossUrl = `${ws.bossUrl.replace(/\/+$/, '')}/api/${mediaMatch[1]}/${mediaMatch[2]}`;
-                        } else {
-                            const filename = normalized.split('/').pop() || params.defaultName;
-                            bossUrl = `${ws.bossUrl.replace(/\/+$/, '')}/api/media/external/${encodeURIComponent(normalized)}`;
-                        }
-                        // Download từ Boss
-                        const response = await fetch(bossUrl, {
-                            headers: { 'Authorization': `Bearer ${ws.token}` },
-                            signal: AbortSignal.timeout(120000),
-                        });
-                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                        const buffer = Buffer.from(await response.arrayBuffer());
-                        fs.writeFileSync(destPath, buffer);
-                    } else {
-                        return { success: false, error: 'Không có nguồn file để lưu' };
-                    }
-                } catch (e: any) {
-                    Logger.error(`[fileIpc] saveAs employee fallback error: ${e.message}`);
-                    return { success: false, error: 'Không thể tải file từ Boss: ' + e.message };
-                }
-            } else {
-                return { success: false, error: 'Không có nguồn file để lưu' };
-            }
+            const written = await writeSourceToDest(params, destPath);
+            if (!written.success) return written;
 
             return { success: true, savedPath: destPath };
         } catch (error: any) {
@@ -204,6 +223,47 @@ export function registerFileIpc() {
     });
 
     /** Lưu base64 data thành file tạm để gửi ảnh clipboard */
+    /**
+     * Lưu nhiều file / ảnh cùng lúc vào MỘT thư mục do người dùng chọn (album ảnh, chọn nhiều tin).
+     * Tên trùng trong thư mục được thêm hậu tố " (2)", " (3)"… để không ghi đè.
+     */
+    ipcMain.handle('file:saveMany', async (_event, params: { items: SaveSourceParams[] }) => {
+        try {
+            const items = (Array.isArray(params?.items) ? params.items : []).filter(it => it && (it.localPath || it.remoteUrl));
+            if (items.length === 0) return { success: false, error: 'Không có file nào để lưu' };
+
+            const result = await dialog.showOpenDialog({
+                title: `Chọn thư mục để lưu ${items.length} file`,
+                properties: ['openDirectory', 'createDirectory'],
+            });
+            if (result.canceled || !result.filePaths[0]) return { success: true, canceled: true };
+            const folder = result.filePaths[0];
+
+            const used = new Set<string>();
+            let saved = 0;
+            const errors: string[] = [];
+            for (const item of items) {
+                // Chỉ lấy tên file, không cho đường dẫn (tránh ghi ra ngoài thư mục đã chọn)
+                const rawName = path.basename(String(item.defaultName || '').replace(/[\\/]+/g, '/')) || `file_${Date.now()}`;
+                const safeName = rawName.replace(/[<>:"|?*\u0000-\u001f]/g, '_');
+                const parsed = path.parse(safeName);
+                let candidate = safeName;
+                for (let n = 2; used.has(candidate.toLowerCase()) || fs.existsSync(path.join(folder, candidate)); n++) {
+                    candidate = `${parsed.name} (${n})${parsed.ext}`;
+                }
+                used.add(candidate.toLowerCase());
+                const r = await writeSourceToDest({ ...item, defaultName: safeName }, path.join(folder, candidate));
+                if (r.success) saved++;
+                else errors.push(r.error || 'lỗi không rõ');
+            }
+            Logger.log(`[fileIpc] saveMany: lưu ${saved}/${items.length} file vào ${folder}`);
+            return { success: saved > 0, saved, failed: items.length - saved, total: items.length, folder, error: saved === 0 ? (errors[0] || 'Không lưu được file nào') : undefined };
+        } catch (error: any) {
+            Logger.error(`[fileIpc] saveMany error: ${error.message}`);
+            return { success: false, error: error.message };
+        }
+    });
+
     ipcMain.handle('file:saveTempBlob', async (_event, { base64, ext, filename }: { base64: string; ext: string; filename?: string }) => {
         try {
             const tmpDir = path.join(app.getPath('temp'), 'deplao-clipboard');

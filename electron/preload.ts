@@ -399,6 +399,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openPath: (filePath: string) => ipcRenderer.invoke('file:openPath', filePath),
     showItemInFolder: (filePath: string) => ipcRenderer.invoke('file:showItemInFolder', filePath),
     saveAs: (params: any) => ipcRenderer.invoke('file:saveAs', params),
+    saveMany: (params: any) => ipcRenderer.invoke('file:saveMany', params),
     saveTempBlob: (params: any) => ipcRenderer.invoke('file:saveTempBlob', params),
     getVideoMeta: (params: any) => ipcRenderer.invoke('file:getVideoMeta', params),
     readImageAsBase64: (params: { localPath?: string; remoteUrl?: string }) => ipcRenderer.invoke('file:readImageAsBase64', params),
