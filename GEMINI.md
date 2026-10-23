@@ -162,6 +162,8 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 - Alias bị "reset" về tên họ tự đặt: `contactList` trong `ChatWindow.tsx` chỉ là các hội thoại đã tải vào store (~200), nên người gửi trong nhóm ngoài danh sách không có `alias`. Sửa: `extraContacts` tra DB qua `DataAccessor.getConversationsByIds` cho người gửi còn thiếu, `getContact` tra thêm bảng này.
 - Mở lại app thiếu tin: `ZaloLoginHelper.setupEventListeners` thêm `pendingCatchUp` trước `listener.start()` để lần kết nối đầu cũng gọi `requestOldMessages` (sau `cipher_key`); tin về qua event `old_messages` (lưu silent, không cộng chưa đọc).
 
+- Tìm người/nhóm: `DatabaseService.getContactsFiltered` (ô tìm danh sách hội thoại) dùng `deplao_fold` (bỏ dấu) cho `display_name` + `alias` và `escapeLikePattern`; trước đây dùng `LOWER()` của SQLite (chỉ ASCII, không bỏ dấu). Tìm toàn cục (`GlobalSearchPanel.tsx`) luôn tra DB qua `DataAccessor.searchConversations` (kể cả chế độ thường) vì danh sách hội thoại trong store chỉ ~200 hội thoại gần nhất → nhóm/bạn bè ngoài danh sách không ra.
+
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
 - `listener.requestOldMessages` của zca-js **chỉ trả các tin phiên web chưa nhận**, không phải API lịch sử; lật trang bằng `lastId` (kể cả gửi `first:false`) Zalo không trả lời. Đã bỏ hướng này.
