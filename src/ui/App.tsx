@@ -32,8 +32,9 @@ import AccountInitPanel from './components/common/accounts/AccountInitPanel';
 import AccountSwitcherOverlay from './components/common/accounts/AccountSwitcherOverlay';
 import TelegramIncomingCall from './components/chat/telegram/quick/TelegramIncomingCall';
 import { UpdateNotification } from './components/common/notifications/UpdateNotification';
-import { useAppStore } from './store/app/appStore';
-import { usePrivacyStore } from './store/privacyStore';
+import { useAppStore, rehydrateAppUiPrefs } from './store/app/appStore';
+import { usePrivacyStore, rehydratePrivacy } from './store/privacyStore';
+import { hydrateUiPrefs } from './lib/uiPrefs';
 import { startZaloMutePolling } from './lib/zaloMuteSync';
 import { useAccountStore } from './store/accounts/accountStore';
 import { useChatStore } from './store/chat/chatStore';
@@ -1265,6 +1266,15 @@ export default function App() {
       }
     });
     return () => unsub?.();
+  }, []);
+
+  // Cài đặt giao diện lưu trong DB (dùng chung dev/build, portable): nạp lại sau khi mở app
+  useEffect(() => {
+    void hydrateUiPrefs().then((changed) => {
+      if (!changed) return;
+      rehydrateAppUiPrefs();
+      rehydratePrivacy();
+    });
   }, []);
 
   // Mute đặt trên điện thoại / Zalo PC: đồng bộ lúc khởi động và định kỳ (event:connected có thể đến trước khi giao diện sẵn sàng)

@@ -81,7 +81,43 @@ async function countFiles(dir: string): Promise<number> {
     return count;
 }
 
+// Khóa cài đặt giao diện cho phép lưu qua uiPrefs (khớp UI_PREF_KEYS ở src/ui/lib/uiPrefs.ts)
+const UI_PREF_KEYS = ['app_theme', 'app_palette', 'app_font_family', 'app_chat_font_size', 'app_fontSizeScale', 'app_privacy', 'app_notifSettings'];
+const UI_PREF_PREFIX = 'ui_pref.';
+const UI_PREF_MAX_LENGTH = 20_000;
+
 export function registerDatabaseIpc() {
+    // Cài đặt giao diện của riêng máy này: workspace nhân viên (từ xa) không dùng DB, giao diện giữ localStorage
+    ipcMain.handle('uiPrefs:getAll', async () => {
+        try {
+            if (isEmployeeMode()) return { success: false };
+            const db = DatabaseService.getInstance();
+            const prefs: Record<string, string> = {};
+            for (const key of UI_PREF_KEYS) {
+                const value = db.getSetting(UI_PREF_PREFIX + key);
+                if (value !== null) prefs[key] = value;
+            }
+            return { success: true, prefs };
+        } catch (error: any) {
+            Logger.warn(`[uiPrefs] getAll lỗi: ${error?.message || error}`);
+            return { success: false };
+        }
+    });
+
+    ipcMain.handle('uiPrefs:set', async (_event, { key, value }: { key: string; value: string }) => {
+        try {
+            if (isEmployeeMode()) return { success: false };
+            if (!UI_PREF_KEYS.includes(key) || typeof value !== 'string' || value.length > UI_PREF_MAX_LENGTH) {
+                return { success: false, error: 'Khóa hoặc giá trị không hợp lệ' };
+            }
+            DatabaseService.getInstance().setSetting(UI_PREF_PREFIX + key, value);
+            return { success: true };
+        } catch (error: any) {
+            Logger.warn(`[uiPrefs] set lỗi: ${error?.message || error}`);
+            return { success: false };
+        }
+    });
+
     ipcMain.handle('db:getMessages', async (_event, { zaloId, threadId, limit = 50, offset = 0, before = 0, topicId }: { zaloId: string; threadId: string; limit?: number; offset?: number; before?: number; topicId?: string }) => {
         try {
             const _isEmp = isEmployeeMode();
