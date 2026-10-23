@@ -88,6 +88,7 @@ npm run production *> build.log             # chạy vài phút; xem log ở bui
 - Kiểm tra build thành công: cuối `build.log` có dòng `building block map ... Deplao-Setup-<version>.exe.blockmap`; tìm `error` / `FAIL` trong log nếu thất bại.
 - Bộ cài **không có chữ ký số** → Windows SmartScreen cảnh báo, bấm "More info" → "Run anyway". Cài đè lên bản cũ, dữ liệu app (tài khoản, tin nhắn) giữ nguyên.
 - Build xong, file `src/bridge-e2ee/build/*.exe` và `package-lock.json` bị thay đổi → **không commit**, trả về bằng `git checkout -- package-lock.json src/bridge-e2ee/build/`.
+- Nếu `build.log` có `[after-pack] ❌ rcedit failed ... Unable to commit changes`: do phần mềm diệt virus khóa `Deplao.exe` lúc vừa tạo; bộ cài vẫn ra nhưng thiếu icon/phiên bản. Chạy lại riêng bước đóng gói: `npx electron-builder --publish never` (lần sau thường qua, log phải có `✅ Icon & version metadata embedded`).
 - `build.log` không commit (đã thêm vào `.git/info/exclude`; clone mới thì thêm lại dòng `build.log` vào file đó).
 - Có thể xóa `dist-electron-build\` sau khi đã cài để lấy lại chỗ trống (build lại sẽ tạo mới).
 - Chỉ build được bản Windows trên máy này. Bản macOS/Linux phải build trên máy tương ứng hoặc qua GitHub Actions có sẵn (`.github/workflows/`) trên fork.
@@ -146,6 +147,14 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 - Bảng màu `zadark` (`appStore.APP_PALETTES`, `AppearanceControls.tsx`, khối `html[data-theme="dark"][data-palette="zadark"]` trong `index.css`): giá trị màu Dark Mode tông xám than của ZaDark (`src/core/scss/zadark.scss`), chỉ lấy mã màu, không chép SCSS. Chỉ giao diện Tối.
 - `NotifSettings.flashMuted` (mặc định false = hội thoại mute không nháy; hội thoại thường luôn nháy, lưu chung + theo tài khoản như các tùy chọn thông báo khác): kiểm tra ở mọi chỗ gọi `flashFrame(true)` (`App.tsx` cho `event:message` và `fb:onMessage`, `useZaloEvents.ts` cho lời mời kết bạn). Công tắc ở Cài đặt → Thông báo.
 - Đồng bộ mute từ Zalo: `ZaloService.getMute` + IPC `zalo:getMute` (khớp tài khoản chặt `requiresStrictAccount`, tránh gán mute nhầm tài khoản) → `src/ui/lib/zaloMuteSync.ts` (`duration` giây, `-1` = vĩnh viễn, `startTime` giây) → `appStore.platformMutedThreads` (chỉ trong bộ nhớ, làm mới mỗi `event:connected`). `isMuted` kiểm tra cả `mutedThreads` (mute trên Deplao, lưu DB) và `platformMutedThreads`; `clearMuted` xóa cả hai (các nút "Bật thông báo" đều gửi `setMute action 3` lên Zalo).
+
+### Các chỉnh sửa nhỏ sau đó
+
+- Icon file: class `file-type-icon` (`index.css`) đặt icon trên nền trắng bo góc ở giao diện Tối (icon sậm chìm trên nền tối); dòng xem trước ở `ConversationList.tsx` dùng bố cục flex để căn giữa dọc.
+- Tên file dài: `MediaSection.tsx` (`FileRow`) tối đa 2 dòng, `ChatWindowBubbles.tsx` (`FileBubble`) tối đa 3 dòng, đều có `title` tooltip; bong bóng file dùng icon SVG thay ô màu.
+- Nút "Lưu về máy…" cho file đính kèm (`FileBubble`, `FileRow`): dùng IPC `file:saveAs` có sẵn (hộp thoại chọn nơi lưu; file chưa tải thì tải từ link, chưa kiểm chứng với link cần đăng nhập).
+- Gộp nút Sáng/Tối cũ vào nút Tùy chỉnh nhanh (`TopBar.tsx` bỏ nút theme riêng).
+- `.github/README.md`: README cho bản chỉnh sửa (GitHub ưu tiên file này hơn `README.md` gốc nên không xung đột khi rebase). `CLAUDE.md` (đã nằm trong `.gitignore` của tác giả) chỉ có trên máy, trỏ tới file này.
 
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
