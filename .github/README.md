@@ -23,9 +23,20 @@
 - Giao diện Sáng / Tối / **Theo hệ thống**; bảng màu Xanh dương, Xanh lá, Tím, Đen tuyền (AMOLED), ZaDark.
 - Nút **Tùy chỉnh nhanh** trên thanh trên cùng: giao diện, bảng màu, phông chữ Google Fonts (tải một lần rồi lưu trên máy), cỡ chữ tin nhắn.
 - Riêng tư: làm mờ tin nhắn / ảnh đại diện / tên hội thoại (rê chuột để xem), ẩn trạng thái "đang soạn" và "đã xem".
+- Cài đặt giao diện lưu trong cơ sở dữ liệu của app nên **dùng chung giữa `npm run dev` và bản build**, đi theo thư mục dữ liệu (portable).
 
 **Thông báo**
 - Đồng bộ danh sách tắt thông báo đặt trên điện thoại / Zalo PC; tùy chọn nháy taskbar với hội thoại đã tắt thông báo.
+
+## Nhật ký thay đổi (so với bản gốc)
+
+Dựa trên Deplao v26.10.2.
+
+- **Cài đặt giao diện lưu vào DB**: không còn mất khi đổi giữa chạy thử (`npm run dev`) và bản build.
+- **Lưu về máy…** cho file đính kèm (bong bóng chat và panel đính kèm); icon file lớn hơn, đặt trên nền trắng ở giao diện Tối, tên file dài xuống dòng có tooltip.
+- **Tùy chỉnh nhanh** gộp nút Sáng/Tối cũ: giao diện, bảng màu, phông chữ, cỡ chữ tin nhắn, riêng tư.
+- **Bảng màu ZaDark**, đồng bộ tắt thông báo từ Zalo, tùy chọn nháy taskbar cho hội thoại đã tắt thông báo.
+- Tab **Đã ghim**, sửa tab **Chưa đọc**; ổn định kết nối nhận tin Zalo.
 
 ## Chạy và build
 
