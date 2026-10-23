@@ -11,12 +11,14 @@
 
 **Nhận tin ổn định hơn (Zalo)**
 - Tự phát hiện kết nối "chết lặng" (không còn dữ liệu) và kết nối lại; kết nối lại tối đa 10 lần, mỗi lần chờ tối đa 2 phút.
-- Tự tải các tin bị lỡ sau khi kết nối lại.
+- Tự tải các tin bị lỡ khi mở lại app và sau khi kết nối lại.
 - Khi tài khoản đang mở ở nơi khác (Zalo Web) thì không tranh phiên, báo rõ để người dùng đóng Zalo Web.
 
 **Danh sách hội thoại**
 - Tab **Đã ghim** (ghim trên Zalo + ghim trong app).
 - Tab **Chưa đọc** tự thêm hội thoại mới có tin chưa đọc.
+- Tìm người / nhóm **không phân biệt dấu, hoa thường**, tìm cả biệt danh lẫn tên gốc, và tìm toàn cục thấy cả nhóm / bạn bè ngoài danh sách đang tải.
+- Rê chuột vào biểu cảm của tin nhắn để xem tên người đã thả; biệt danh được hiển thị đúng ngay cả với người ngoài danh sách hội thoại đang tải.
 - Tin file hiện icon SVG theo loại file (đúng màu Word / Excel / PowerPoint / PDF), tên file dài xuống dòng và có tooltip; nút **Lưu về máy…** cho file đính kèm.
 
 **Giao diện** (lấy ý tưởng từ [ZaDark](https://github.com/ncdai/zadark), tự viết lại, không chép mã)
@@ -36,7 +38,8 @@ Dựa trên Deplao v26.10.2.
 - **Lưu về máy…** cho file đính kèm (bong bóng chat và panel đính kèm); icon file lớn hơn, đặt trên nền trắng ở giao diện Tối, tên file dài xuống dòng có tooltip.
 - **Tùy chỉnh nhanh** gộp nút Sáng/Tối cũ: giao diện, bảng màu, phông chữ, cỡ chữ tin nhắn, riêng tư.
 - **Bảng màu ZaDark**, đồng bộ tắt thông báo từ Zalo, tùy chọn nháy taskbar cho hội thoại đã tắt thông báo.
-- Tab **Đã ghim**, sửa tab **Chưa đọc**; ổn định kết nối nhận tin Zalo.
+- Tab **Đã ghim**, sửa tab **Chưa đọc**; ổn định kết nối nhận tin Zalo, tự tải tin bị lỡ khi mở lại app.
+- **Tìm kiếm** không dấu và tìm cả biệt danh / tên gốc; **tooltip tên người react**; sửa biệt danh bị hiện lại tên gốc.
 
 ## Chạy và build
 
