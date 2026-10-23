@@ -628,13 +628,48 @@ export default function ChatWindow() {
     return () => { window.clearTimeout(first); window.clearInterval(timer); };
   }, [threadReady, activeAccountId, activeThreadId, activeContact?.channel]);
 
+  // Người gửi chưa có trong danh sách hội thoại đã tải (store chỉ giữ ~200 hội thoại gần nhất): tra DB để lấy biệt danh
+  // (alias) họ được đặt; trước đây thiếu → hiện lại tên họ tự đặt dù đã đổi biệt danh.
+  const [extraContacts, setExtraContacts] = React.useState<Record<string, any>>({});
+  const requestedExtraRef = React.useRef<Set<string>>(new Set());
+  React.useEffect(() => {
+    requestedExtraRef.current = new Set();
+    setExtraContacts({});
+  }, [activeAccountId, activeThreadId]);
+
   // OPTIMIZATION: Contact lookup O(1) với Map
   const contactMap = React.useMemo(() => {
     const map = new Map<string, any>();
     contactList.forEach(c => map.set(c.contact_id, c));
     return map;
   }, [contactList]);
-  const getContact = (senderId: string) => contactMap.get(senderId);
+  const getContact = (senderId: string) => contactMap.get(senderId) ?? extraContacts[senderId];
+
+  React.useEffect(() => {
+    if (!activeAccountId || !activeThreadId) return;
+    const missing: string[] = [];
+    for (const m of msgs) {
+      const sid = m?.sender_id ? String(m.sender_id) : '';
+      if (!sid || sid === activeAccountId || contactMap.has(sid) || requestedExtraRef.current.has(sid)) continue;
+      requestedExtraRef.current.add(sid);
+      missing.push(sid);
+    }
+    if (missing.length === 0) return;
+    const accountId = activeAccountId;
+    const threadId = activeThreadId;
+    (async () => {
+      const found: Record<string, any> = {};
+      for (let i = 0; i < missing.length; i += 200) {
+        const res: any = await DataAccessor.getConversationsByIds(accountId, missing.slice(i, i + 200)).catch(() => null);
+        if (res?.success) for (const c of (res.items || [])) found[String(c.contact_id)] = c;
+      }
+      if (Object.keys(found).length === 0) return;
+      // Chỉ áp dụng nếu vẫn đang ở hội thoại này
+      const state = useChatStore.getState();
+      if (state.activeThreadId !== threadId) return;
+      setExtraContacts(prev => ({ ...prev, ...found }));
+    })();
+  }, [msgs, contactMap, activeAccountId, activeThreadId]);
 
   // Cache group members for current thread
   const groupMembers: any[] = threadGroupInfo?.members || EMPTY_MEMBERS;
@@ -659,6 +694,33 @@ export default function ChatWindow() {
         || (!isGroupThread ? (activeContact?.alias || activeContact?.display_name) : '') || 'Thành viên';
     }
     return { text: extractMsgText(m), sender, timestamp: Number(m.timestamp) || Date.now() };
+  };
+
+  /** Tooltip chip reaction: tên người đã thả (alias ưu tiên, giống popup). `onlyEmoji` = chỉ một biểu cảm */
+  const reactorTooltip = (msg: any, onlyEmoji?: string): string | undefined => {
+    const data = parseReactionsFull(msg.reactions, msg.channel);
+    const nameOf = (uid: string): string => {
+      if (uid === activeAccountId) return 'Bạn';
+      const c = getContact(uid);
+      const fromContact = c?.alias || c?.display_name;
+      if (fromContact && fromContact !== uid) return fromContact;
+      const m = getGroupMember(uid);
+      return m?.displayName || [m?.firstName, m?.lastName].filter(Boolean).join(' ') || '';
+    };
+    const MAX_NAMES = 15;
+    const lines: string[] = [];
+    for (const [emoji, emoData] of Object.entries(data.emoji)) {
+      if (onlyEmoji && emoji !== onlyEmoji) continue;
+      const uids = Object.keys(emoData.users || {});
+      if (uids.length === 0) continue;
+      const names = uids.map(nameOf).filter(Boolean);
+      const unknown = uids.length - names.length;
+      const shown = names.slice(0, MAX_NAMES);
+      const rest = names.length - shown.length + unknown;
+      const text = shown.join(', ') + (rest > 0 ? `${shown.length ? ' và ' : ''}${rest} người khác` : '');
+      lines.push(onlyEmoji ? text : `${displayReactionEmoji(emoji)} ${text}`);
+    }
+    return lines.length ? lines.join('\n') : undefined;
   };
 
   // Check if current user is group owner or deputy - can recall any member's message
@@ -3987,6 +4049,7 @@ export default function ChatWindow() {
                           closeReactionPicker();
                         }}
                         onShowReactors={(emoji) => setReactionPopup({ msg, activeEmoji: emoji })}
+                        reactorTitle={(emoji) => reactorTooltip(msg, emoji)}
                       />
                     );
                   })()}
