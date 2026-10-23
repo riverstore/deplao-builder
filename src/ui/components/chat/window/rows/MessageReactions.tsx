@@ -3,7 +3,7 @@
  * Telegram: danh sách cảm xúc của hội thoại; bài đăng kênh: chỉ còn nút (cảm xúc đã vẽ trong khung bài).
  */
 import { isTelegram as isTelegramCh } from '@/lib/channels/channelHelper';
-import { parseReactionsFull } from '../../messages/reactions/ReactionComponents';
+import { displayReactionEmoji, parseReactionsFull } from '../../messages/reactions/ReactionComponents';
 import { MessageReactionCorner } from '../../messages/reactions/MessageReactionCorner';
 import { getReactionChoices, sameReaction } from '@/lib/chat/reactions/reactionChoices';
 import type { MessageRowContext, RowLocals } from './rowContext';
@@ -19,6 +19,34 @@ export function MessageReactions({ ctx, msg, isSent, reactionCounts, telegramPos
   const loadTelegramReactions = () => {
     if (msg.channel === 'telegram_user') telegramReactions.load();
   };
+
+  /** Tooltip chip reaction: tên người đã thả (alias ưu tiên, giống popup). `onlyEmoji` = chỉ một biểu cảm */
+  const reactorTitle = (onlyEmoji?: string): string | undefined => {
+    const data = rFull;
+    const nameOf = (uid: string): string => {
+      if (uid === activeAccountId) return 'Bạn';
+      const c = ctx.getContact(uid);
+      const fromContact = c?.alias || c?.display_name;
+      if (fromContact && fromContact !== uid) return fromContact;
+      const m = ctx.getGroupMember(uid);
+      return m?.displayName || [m?.firstName, m?.lastName].filter(Boolean).join(' ') || '';
+    };
+    const MAX_NAMES = 15;
+    const lines: string[] = [];
+    for (const [emoji, emoData] of Object.entries((data as any).emoji || {})) {
+      if (onlyEmoji && emoji !== onlyEmoji) continue;
+      const uids = Object.keys((emoData as any)?.users || {});
+      if (uids.length === 0) continue;
+      const names = uids.map(nameOf).filter(Boolean);
+      const unknown = uids.length - names.length;
+      const shown = names.slice(0, MAX_NAMES);
+      const rest = names.length - shown.length + unknown;
+      const text = shown.join(', ') + (rest > 0 ? `${shown.length ? ' và ' : ''}${rest} người khác` : '');
+      lines.push(onlyEmoji ? text : `${displayReactionEmoji(emoji)} ${text}`);
+    }
+    return lines.length ? lines.join('\n') : undefined;
+  };
+
   return (
     <MessageReactionCorner
       isSent={isSent}
@@ -41,6 +69,7 @@ export function MessageReactions({ ctx, msg, isSent, reactionCounts, telegramPos
         closeReactionPicker();
       }}
       onShowReactors={(emoji) => setReactionPopup({ msg, activeEmoji: emoji })}
+      reactorTitle={(emoji) => reactorTitle(emoji)}
     />
   );
 }

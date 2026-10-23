@@ -110,7 +110,7 @@ export default function ChatWindow() {
   } = useMessageGrouping(msgs);
   const {
     contactMap, getContact, groupMembers, getGroupMember, erpSourceOf, isGroupAdmin, resolveQuoteAuthor, resolveStarSender,
-  } = useSenderDirectory({ contactList, threadGroupInfo, activeAccountId, activeThreadId, activeContact, allAccounts, findMsgById });
+  } = useSenderDirectory({ contactList, threadGroupInfo, activeAccountId, activeThreadId, activeContact, allAccounts, findMsgById, msgs });
 
   // ─── Vòng đời hội thoại, tải tin cũ, bám đáy / giữ vị trí cuộn ─────────────────────────────────────────────────────
   useThreadLifecycle(list, {

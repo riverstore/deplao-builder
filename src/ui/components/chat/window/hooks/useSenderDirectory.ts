@@ -5,6 +5,8 @@
 import React from 'react';
 import type { ErpSourceMessage } from '@/lib/chat/erp/messageToErp';
 import { extractMsgText } from '@/lib/chat/messages/messageParser';
+import DataAccessor from '@/lib/data/DataAccessor';
+import { useChatStore } from '@/store/chat/chatStore';
 
 const EMPTY_MEMBERS: any[] = [];
 
@@ -16,15 +18,51 @@ export function useSenderDirectory(deps: {
   activeContact: any;
   allAccounts: any[];
   findMsgById: (id: unknown) => any;
+  msgs?: any[];
 }) {
-  const { contactList, threadGroupInfo, activeAccountId, activeThreadId, activeContact, allAccounts, findMsgById } = deps;
+  const { contactList, threadGroupInfo, activeAccountId, activeThreadId, activeContact, allAccounts, findMsgById, msgs } = deps;
+
+  // Người gửi chưa có trong danh sách hội thoại đã tải (store chỉ giữ ~200 hội thoại gần nhất): tra DB để lấy biệt danh
+  // (alias) họ được đặt; trước đây thiếu → hiện lại tên họ tự đặt dù đã đổi biệt danh.
+  const [extraContacts, setExtraContacts] = React.useState<Record<string, any>>({});
+  const requestedExtraRef = React.useRef<Set<string>>(new Set());
+  React.useEffect(() => {
+    requestedExtraRef.current = new Set();
+    setExtraContacts({});
+  }, [activeAccountId, activeThreadId]);
+
   // OPTIMIZATION: Contact lookup O(1) với Map
   const contactMap = React.useMemo(() => {
     const map = new Map<string, any>();
     contactList.forEach(c => map.set(c.contact_id, c));
     return map;
   }, [contactList]);
-  const getContact = (senderId: string) => contactMap.get(senderId);
+  const getContact = (senderId: string) => contactMap.get(senderId) ?? extraContacts[senderId];
+
+  React.useEffect(() => {
+    if (!activeAccountId || !activeThreadId || !msgs) return;
+    const missing: string[] = [];
+    for (const m of msgs) {
+      const sid = m?.sender_id ? String(m.sender_id) : '';
+      if (!sid || sid === activeAccountId || contactMap.has(sid) || requestedExtraRef.current.has(sid)) continue;
+      requestedExtraRef.current.add(sid);
+      missing.push(sid);
+    }
+    if (missing.length === 0) return;
+    const accountId = activeAccountId;
+    const threadId = activeThreadId;
+    (async () => {
+      const found: Record<string, any> = {};
+      for (let i = 0; i < missing.length; i += 200) {
+        const res: any = await DataAccessor.getConversationsByIds(accountId, missing.slice(i, i + 200)).catch(() => null);
+        if (res?.success) for (const c of (res.items || [])) found[String(c.contact_id)] = c;
+      }
+      if (Object.keys(found).length === 0) return;
+      const state = useChatStore.getState();
+      if (state.activeThreadId !== threadId) return;
+      setExtraContacts(prev => ({ ...prev, ...found }));
+    })();
+  }, [msgs, contactMap, activeAccountId, activeThreadId]);
 
   // Cache group members for current thread
   const groupMembers: any[] = threadGroupInfo?.members || EMPTY_MEMBERS;

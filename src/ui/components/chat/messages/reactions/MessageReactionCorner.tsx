@@ -95,10 +95,12 @@ export interface MessageReactionCornerProps {
   onPick: (emoji: string) => void;
   /** Bấm chip: xem ai đã thả ('all' = chip gộp) */
   onShowReactors: (emoji: string) => void;
+  /** Tooltip tên người đã thả (emoji = chip của riêng cảm xúc đó; bỏ trống = chip gộp) */
+  reactorTitle?: (emoji?: string) => string | undefined;
 }
 
 export function MessageReactionCorner({
-  isSent, counts, myEmoji, variant, hideCounts, pickerOpen, pickerEmojis, onArm, onLeave, onOpenPicker, onPick, onShowReactors,
+  isSent, counts, myEmoji, variant, hideCounts, pickerOpen, pickerEmojis, onArm, onLeave, onOpenPicker, onPick, onShowReactors, reactorTitle,
 }: MessageReactionCornerProps) {
   const entries = Object.entries(counts).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1]);
   const showCounts = entries.length > 0 && !hideCounts;
@@ -119,6 +121,7 @@ export function MessageReactionCorner({
             <button
               key={emoji}
               type="button"
+              title={reactorTitle?.(emoji)}
               onClick={() => onShowReactors(emoji)}
               className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs shadow-sm transition-colors ${
                 myEmoji === emoji
@@ -134,6 +137,7 @@ export function MessageReactionCorner({
       ) : showCounts ? (
         <button
           type="button"
+          title={reactorTitle?.()}
           onClick={() => onShowReactors('all')}
           className="flex items-center gap-0.5 bg-muted hover:bg-accent border border-input rounded-full px-1.5 py-0.5 text-xs shadow-sm select-none transition-colors"
         >
