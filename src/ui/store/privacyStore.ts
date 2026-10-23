@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { savePref } from '../lib/uiPrefs';
 
 /**
  * Tùy chọn riêng tư (giống ZaDark), lưu trên máy:
@@ -49,9 +50,14 @@ export const usePrivacyStore = create<PrivacyState>((set, get) => ({
   setPrivacy: (key, value) => {
     set({ [key]: value } as Partial<PrivacySettings>);
     const { setPrivacy: _ignored, ...settings } = get();
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); } catch {}
+    savePref('app_privacy', JSON.stringify(settings));
   },
 }));
 
 /** Đọc nhanh ngoài React (helper gửi seen/typing) */
 export const isPrivacyEnabled = (key: PrivacyKey): boolean => usePrivacyStore.getState()[key];
+
+/** Đọc lại từ localStorage sau khi hydrateUiPrefs nạp từ DB */
+export function rehydratePrivacy(): void {
+  usePrivacyStore.setState(load());
+}
