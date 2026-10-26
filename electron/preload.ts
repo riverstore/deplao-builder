@@ -88,6 +88,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openInApp: (url: string) => ipcRenderer.invoke('shell:openInApp', url),
   },
 
+  // ─── Log của giao diện → tab Nhật ký (xem src/ui/lib/rendererLog.ts) ────
+  rendererLog: (level: string, message: string) => ipcRenderer.send('app:rendererLog', { level, message }),
+
   // ─── Cài đặt giao diện lưu trong DB (xem src/ui/lib/uiPrefs.ts) ────
   uiPrefs: {
     getAll: () => ipcRenderer.invoke('uiPrefs:getAll'),

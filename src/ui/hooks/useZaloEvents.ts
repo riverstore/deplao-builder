@@ -18,6 +18,7 @@ import { channelSupports, type Channel } from '@/../configs/channelConfig';
 import { installLiveReadPresence, isChatPaneVisible, liveReadSync } from '@/lib/chat/liveReadSync';
 import { installTelegramDownloadFocus } from '@/lib/media/telegramDownloadFocus';
 import { syncZaloMutes } from '@/lib/zaloMuteSync';
+import { rendererLog } from '@/lib/rendererLog';
 import { CHANNEL, isZalo, isFacebook, isTelegram, isTelegramForumGeneral } from '@/lib/channelHelper';
 import { playNotificationSound, showDesktopNotification, requestNotificationPermission } from '../utils/NotificationService';
 import { inAppToastAllowed, useInAppNotifyStore } from '@/store/inAppNotifyStore';
@@ -1372,6 +1373,14 @@ export function useZaloEvents() {
         last_message: lastMsgPreview,
         last_message_time: timestamp,
       });
+      // Truy vết biệt danh: lúc tin đến, và 1,5 giây sau (so với store) — xuất log để biết store có mất alias không
+      if (!isSelf && !isGroup) {
+        const before = (existingContact?.alias || '');
+        window.setTimeout(() => {
+          const now = (useChatStore.getState().contacts[zaloId] || []).find(c => c.contact_id === threadId);
+          rendererLog('log', `[alias-trace] event:message contact=${threadId} inStore=${!!existingContact} aliasTruoc="${before}" aliasSau1.5s="${now?.alias || ''}" display="${now?.display_name || ''}"`);
+        }, 1500);
+      }
       // Hội thoại chưa có trong store (cũ, ngoài ~200 hội thoại đã tải): mục vừa dựng từ tin chỉ có tên Zalo → lấy biệt danh
       // trong DB. Không ghi lại alias từ aliasMap cho hội thoại đã có: aliasMap chỉ nạp lúc kết nối nên cũ sau khi người
       // dùng sửa / xóa biệt danh (mỗi tin mới sẽ trả về biệt danh cũ).

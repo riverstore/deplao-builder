@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { rendererLog, shortStack } from '../lib/rendererLog';
 import { clearReplyDrafts } from '@/lib/chat/replyDrafts';
 import ipc from "@/lib/ipc";
 import type { Channel } from '@/../configs/channelConfig';
@@ -380,6 +381,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           ...state.contacts,
           [zaloId]: contacts.map(raw => {
             const keptAlias = !raw.alias ? previous.get(raw.contact_id)?.alias : undefined;
+            if (keptAlias) rendererLog('warn', `[alias-trace] setContacts: danh sách mới thiếu alias, giữ lại contact=${raw.contact_id} "${keptAlias}" stack=${shortStack(3)}`);
             const c = keptAlias ? { ...raw, alias: keptAlias } : raw;
             // Normalize legacy avatar URL format: media://local/ → local-media://
             if (c.avatar_url && c.avatar_url.startsWith('media://local/')) {
@@ -577,6 +579,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   updateContact: (zaloId, rawContact) =>
     set((state) => {
+      const beforeAlias = (state.contacts[zaloId] || []).find(c => c.contact_id === rawContact.contact_id)?.alias;
       // `alias: undefined` (khóa có mặt nhưng không có giá trị) khi trải ra sẽ xóa biệt danh đang có → bỏ khóa đó
       let contact = rawContact;
       if ('alias' in contact && contact.alias === undefined) {
@@ -602,6 +605,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               ...contact,
             } as ContactItem,
           ];
+      // Truy vết: biệt danh đang có bị đổi / mất (nguyên nhân biệt danh hiện lại tên mặc định)
+      if (beforeAlias) {
+        const afterAlias = updated.find(c => c.contact_id === contact.contact_id)?.alias;
+        if (afterAlias !== beforeAlias) {
+          rendererLog('warn', `[alias-trace] updateContact đổi alias contact=${contact.contact_id} "${beforeAlias}" -> "${afterAlias ?? ''}" keys=${Object.keys(contact).join(',')} stack=${shortStack(3)}`);
+        }
+      }
       // Sort by last_message_time desc
       updated.sort((a, b) => (b.last_message_time || 0) - (a.last_message_time || 0));
       return { contacts: { ...state.contacts, [zaloId]: updated } };
