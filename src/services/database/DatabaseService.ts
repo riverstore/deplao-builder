@@ -4808,6 +4808,16 @@ class DatabaseService {
      */
     public setContactAlias(ownerZaloId: string, contactId: string, alias: string): void {
         if (!this.initialized || !contactId) return;
+        // Liên hệ chưa có dòng trong DB (bạn bè chưa nhắn / chưa lưu): UPDATE không ghi gì → biệt danh chỉ nằm trong bộ nhớ giao
+        // diện, tin đầu tiên tạo dòng mới không có alias và lần nạp lại sau đó hiện lại tên mặc định. Tạo dòng tối thiểu trước.
+        // Xóa biệt danh (alias rỗng) thì không cần tạo dòng.
+        if (alias) {
+            this.run(
+                `INSERT OR IGNORE INTO contacts (owner_zalo_id, contact_id, display_name, avatar_url, is_friend, contact_type, unread_count)
+                 VALUES (?,?,?,'',0,'user',0)`,
+                [ownerZaloId, contactId, contactId]
+            );
+        }
         this.run(
             `UPDATE contacts SET alias=? WHERE owner_zalo_id=? AND contact_id=?`,
             [alias || '', ownerZaloId, contactId]
