@@ -37,10 +37,19 @@ export function extractUserProfile(profile: any): ExtractedProfile {
     return { displayName: '', avatar: '', phone: '', gender: null, birthday: null, alias: '' };
   }
 
-  const displayName: string = profile.displayName || profile.zaloName || profile.name || '';
+  let displayName: string = profile.displayName || profile.zaloName || profile.name || '';
   const avatar: string = profile.avatar || profile.avatarUrl || '';
   const phone: string = profile.phoneNumber || profile.msisdn || profile.phone || '';
-  const alias: string = profile.friendAlias || profile.alias || profile.nickName || '';
+  let alias: string = profile.friendAlias || profile.alias || profile.nickName || '';
+
+  // Zalo KHÔNG đặt biệt danh (tên gợi nhớ) vào alias/friendAlias của getUserInfo: với bạn bè, `displayName` là tên bạn
+  // nhìn thấy (= biệt danh nếu có) còn `zaloName` là tên Zalo gốc của họ. Trước đây coi displayName là "tên thật" nên biệt danh
+  // bị lưu vào cột tên, rồi tin nhắn kế tiếp (mang tên gốc) ghi đè → hiện lại tên mặc định. Hai tên khác nhau ⇒ displayName là biệt danh.
+  const zaloName: string = profile.zaloName || '';
+  if (!alias && zaloName && profile.displayName && profile.displayName !== zaloName) {
+    alias = profile.displayName;
+    displayName = zaloName;
+  }
 
   // Gender: 0 = Nam, 1 = Nữ
   const gender: number | null =

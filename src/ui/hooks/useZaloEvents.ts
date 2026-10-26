@@ -492,7 +492,11 @@ export async function refreshContactAlias(zaloId: string, contactId: string): Pr
     if (!rawProfile) return;
 
     const { alias: apiAlias } = extractUserProfile(rawProfile);
-    if (!apiAlias) return;
+    if (!apiAlias) {
+      // Zalo trả hồ sơ nhưng người này không có biệt danh: đánh dấu đã kiểm tra, đỡ gọi lại Zalo ở mỗi tin nhắn đến
+      setAliasRefreshTime(aliasCacheKey);
+      return;
+    }
 
     const cachedAlias = aliasMap.get(`${zaloId}__${contactId}`);
     const resolvedAlias = apiAlias || cachedAlias || '';
