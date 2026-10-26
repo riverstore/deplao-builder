@@ -172,6 +172,8 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 
 - **Tin nhận lúc app tắt không hiện**: tác giả đã XÓA handler `listener.on("old_messages")` ở v26.10.1 (thay bằng đồng bộ từ điện thoại) nên `requestOldMessages` của phần "tải tin bị lỡ" (mục 5, Commit 1) gửi đi nhưng tin trả về bị bỏ. Đã khôi phục handler trong `ZaloLoginHelper.setupEventListeners` (lô 50 tin, `broadcastMessage` silent = lưu DB, không cộng chưa đọc, không thông báo) kèm log `old_messages (cá nhân|nhóm): N tin, M tin mới được lưu` để kiểm chứng. Khi rebase lên bản mới của tác giả nhớ kiểm tra handler này còn không.
 
+- **Biệt danh biến mất khi có tin đầu tiên** (người dùng "tận mắt" thấy sau khi tải biệt danh): `DatabaseService.setContactAlias` trước đây chỉ `UPDATE` nên liên hệ CHƯA có dòng trong `contacts` (bạn bè chưa nhắn) không được ghi biệt danh vào DB, trong khi giao diện vẫn hiện (đã đẩy vào store); tin đầu tiên tạo dòng mới không có alias, lần nạp lại từ DB mất biệt danh. Nay `setContactAlias` tạo dòng tối thiểu (`INSERT OR IGNORE`, display_name = contactId) khi alias không rỗng rồi `UPDATE`; các UPSERT khi nhận tin không đụng cột `alias` (đã thử trên bản sao DB thật).
+
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
 - `listener.requestOldMessages` của zca-js **chỉ trả các tin phiên web chưa nhận**, không phải API lịch sử; lật trang bằng `lastId` (kể cả gửi `first:false`) Zalo không trả lời. Đã bỏ hướng này.
