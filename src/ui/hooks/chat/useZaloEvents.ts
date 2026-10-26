@@ -121,6 +121,7 @@ async function loadAliases(zaloId: string) {
       if (!account) return;
       const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent, accountId: zaloId };
       const aliasItems = await fetchAllAliases(auth);
+      let writtenToDb = 0;
       for (const item of aliasItems) {
         if (item.alias && item.userId) {
           const aliasKey = `${zaloId}__${item.userId}`;
@@ -134,10 +135,12 @@ async function loadAliases(zaloId: string) {
           // Save to the DB so it survives restarts, only when the alias changes: each save emits db:contactAliasChanged (the Boss relays
           // it to every employee of the account), so previously each connection = one event for EVERY alias. Employees do not save.
           if (!unchanged && !isEmployeeMode()) {
+            writtenToDb++;
             DataAccessor.setContactAlias({ zaloId, contactId: item.userId, alias: item.alias }).catch(() => {});
           }
         }
       }
+      rendererLog('log', `[alias-trace] loadAliases ${zaloId}: Zalo trả ${aliasItems.length} biệt danh, ghi mới vào DB ${writtenToDb}`);
     } catch {}
   })();
 
