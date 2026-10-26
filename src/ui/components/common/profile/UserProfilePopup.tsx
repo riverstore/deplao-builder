@@ -8,6 +8,7 @@ import { useAppStore } from '@/store/app/appStore';
 import { useAccountStore } from '@/store/accounts/accountStore';
 import ipc, { buildZaloAuth } from '@/lib/ipc'
 import DataAccessor from '@/lib/data/DataAccessor';;
+import { extractUserProfile } from '../../../../utils/zalo/profileUtils';
 import { channelSupports, type Channel } from '@/../configs/channels/channelConfig';
 import { CHANNEL, isZalo, isFacebook, isTelegram, isNonZalo } from '@/lib/channels/channelHelper';
 import PhoneDisplay from '../inputs/PhoneDisplay';
@@ -165,10 +166,12 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
           const raw = res.response;
           const profile: any = raw.changed_profiles?.[userId];
           if (!profile) return;
-          const apiAlias: string = profile.friendAlias || profile.alias || profile.nickName || '';
+          // displayName khác zaloName ⇒ displayName là biệt danh (xem extractUserProfile)
+          const extracted = extractUserProfile(profile);
+          const apiAlias: string = extracted.alias;
           const contactAlias = contactInfo?.alias || '';
           const resolvedAlias = apiAlias || contactAlias;
-          const realName = profile.displayName || profile.zaloName || userId;
+          const realName = extracted.displayName || userId;
           const u = {
             display_name: realName,
             alias: resolvedAlias,
