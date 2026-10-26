@@ -1018,6 +1018,35 @@ class ZaloLoginHelper {
             }
         });
 
+        // Tin nhận lúc app tắt / mất kết nối: Zalo trả qua requestOldMessages (gọi sau cipher_key). Tác giả đã bỏ handler này ở
+        // v26.10.1 → tin bị rơi mất; khôi phục. Lưu im lặng (không cộng chưa đọc, không thông báo), bỏ qua tin đã có trong DB.
+        listener.on("old_messages", async (messages: any[], threadType?: number) => {
+            const total = Array.isArray(messages) ? messages.length : 0;
+            let fresh = 0;
+            try {
+                // Xử lý theo lô: vòng tuần tự hàng trăm tin làm tràn IPC → giao diện đứng; lô 50 tin + nhường event loop giữa các lô
+                const BATCH_SIZE = 50;
+                const db = DatabaseService.getInstance();
+                for (let i = 0; i < total; i += BATCH_SIZE) {
+                    const batch = messages.slice(i, i + BATCH_SIZE);
+                    await Promise.allSettled(
+                        batch.map((message: any) => {
+                            const msgId = message?.data?.msgId;
+                            if (msgId && !db.hasMessage(zaloId, String(msgId))) fresh++;
+                            message.zaloId = zaloId;
+                            return EventBroadcaster.broadcastMessage(zaloId, message, { silent: true });
+                        })
+                    );
+                    if (i + BATCH_SIZE < total) {
+                        await new Promise<void>((r) => setTimeout(r, 30));
+                    }
+                }
+                Logger.log(`[ZaloLoginHelper] ${zaloId} old_messages (${threadType === ThreadType.Group ? 'nhóm' : 'cá nhân'}): ${total} tin, ${fresh} tin mới được lưu`);
+            } catch (error: any) {
+                Logger.error(`[ZaloLoginHelper] old_messages error: ${error.message}`);
+            }
+        });
+
         listener.on("friend_event", async (event: any) => {
             Logger.log(`[ZaloLoginHelper] 📩 RAW friend_event event: ${JSON.stringify(event)}`);
             try {
