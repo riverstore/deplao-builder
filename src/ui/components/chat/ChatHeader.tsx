@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { rendererLog } from '@/lib/rendererLog';
 import { useChatStore } from '@/store/chatStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useAccountStore } from '@/store/accountStore';
@@ -543,6 +544,7 @@ export default function ChatHeader() {
         const auth = buildZaloAuth(acc, activeAccountId);
         // 1. Update toàn bộ alias từ fetchAllAliases (pagination, count=200)
         const aliasItems = await fetchAllAliases(auth);
+        rendererLog('log', `[alias-trace] ChatHeader refresh: Zalo trả ${aliasItems.length} biệt danh; hội thoại này (${activeThreadId}) ${aliasItems.some((i) => i.userId === activeThreadId) ? 'CÓ' : 'KHÔNG có'} trong danh sách`);
         for (const item of aliasItems) {
           if (item.alias && item.userId) {
             updateContact(activeAccountId, { contact_id: item.userId, alias: item.alias });
@@ -555,6 +557,7 @@ export default function ChatHeader() {
           || infoRes?.response?.data?.[activeThreadId];
         if (rawProfile) {
           const { displayName: newName, avatar: newAvatar, phone: newPhone, gender, birthday, alias: newAlias } = extractUserProfile(rawProfile);
+          rendererLog('log', `[alias-trace] ChatHeader refresh getUserInfo thread=${activeThreadId}: alias="${newAlias}" displayName="${newName}" zaloName="${rawProfile?.zaloName || ''}" friendAlias="${rawProfile?.friendAlias || ''}" keys=${Object.keys(rawProfile).filter(k => /alias|name/i.test(k)).join(',')}`);
           const patch: any = { contact_id: activeThreadId };
           if (newName) patch.display_name = newName;
           if (newAvatar) patch.avatar_url = newAvatar;

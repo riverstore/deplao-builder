@@ -118,6 +118,7 @@ async function loadAliases(zaloId: string) {
       if (!account) return;
       const auth = { cookies: account.cookies, imei: account.imei, userAgent: account.user_agent, accountId: zaloId };
       const aliasItems = await fetchAllAliases(auth);
+      let writtenToDb = 0;
       for (const item of aliasItems) {
         if (item.alias && item.userId) {
           const aliasKey = `${zaloId}__${item.userId}`;
@@ -131,10 +132,12 @@ async function loadAliases(zaloId: string) {
           // Lưu vào DB để bền vững qua restart — chỉ khi bí danh đổi: mỗi lần lưu phát db:contactAliasChanged (Boss relay
           // cho mọi nhân viên của tài khoản) → trước đây mỗi lần kết nối = một event cho MỌI bí danh. Nhân viên không lưu.
           if (!unchanged && !isEmployeeMode()) {
+            writtenToDb++;
             DataAccessor.setContactAlias({ zaloId, contactId: item.userId, alias: item.alias }).catch(() => {});
           }
         }
       }
+      rendererLog('log', `[alias-trace] loadAliases ${zaloId}: Zalo trả ${aliasItems.length} biệt danh, ghi mới vào DB ${writtenToDb}`);
     } catch {}
   })();
 
