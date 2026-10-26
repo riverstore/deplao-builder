@@ -371,21 +371,28 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   setContacts: (zaloId, contacts) =>
-    set((state) => ({
-      contacts: {
-        ...state.contacts,
-        [zaloId]: contacts.map(c => {
-          // Normalize legacy avatar URL format: media://local/ → local-media://
-          if (c.avatar_url && c.avatar_url.startsWith('media://local/')) {
-            const rawPath = c.avatar_url.replace('media://local/', '');
-            const normalized = rawPath.replace(/\\/g, '/');
-            const withSlash = normalized.startsWith('/') ? normalized : '/' + normalized;
-            return { ...c, avatar_url: 'local-media://' + withSlash };
-          }
-          return c;
-        }),
-      },
-    })),
+    set((state) => {
+      // Danh sách nạp lại từ DB có thể thiếu biệt danh mà giao diện đã có (ghi DB thất bại / chậm): giữ biệt danh đang có,
+      // đừng để một lần nạp lại làm hiện lại tên mặc định. Xóa biệt danh luôn đi qua updateContact (alias rỗng) nên không bị chặn.
+      const previous = new Map((state.contacts[zaloId] || []).map(c => [c.contact_id, c]));
+      return {
+        contacts: {
+          ...state.contacts,
+          [zaloId]: contacts.map(raw => {
+            const keptAlias = !raw.alias ? previous.get(raw.contact_id)?.alias : undefined;
+            const c = keptAlias ? { ...raw, alias: keptAlias } : raw;
+            // Normalize legacy avatar URL format: media://local/ → local-media://
+            if (c.avatar_url && c.avatar_url.startsWith('media://local/')) {
+              const rawPath = c.avatar_url.replace('media://local/', '');
+              const normalized = rawPath.replace(/\\/g, '/');
+              const withSlash = normalized.startsWith('/') ? normalized : '/' + normalized;
+              return { ...c, avatar_url: 'local-media://' + withSlash };
+            }
+            return c;
+          }),
+        },
+      };
+    }),
 
   setMessages: (zaloId, threadId, messages, topicRootMessageId) => {
     const key = getMessageCacheKey(zaloId, threadId, topicRootMessageId);
@@ -568,8 +575,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     });
   },
 
-  updateContact: (zaloId, contact) =>
+  updateContact: (zaloId, rawContact) =>
     set((state) => {
+      // `alias: undefined` (khóa có mặt nhưng không có giá trị) khi trải ra sẽ xóa biệt danh đang có → bỏ khóa đó
+      let contact = rawContact;
+      if ('alias' in contact && contact.alias === undefined) {
+        const { alias: _dropped, ...rest } = contact;
+        contact = rest as typeof rawContact;
+      }
       const list = state.contacts[zaloId] || [];
       const exists = list.some((c) => c.contact_id === contact.contact_id);
       const updated = exists
