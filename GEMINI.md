@@ -181,6 +181,16 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 
 - **NGUYÊN NHÂN GỐC của biệt danh "hiện lại tên mặc định khi có tin mới"** (xác định bằng log `[alias-trace]` + dữ liệu thật): Zalo KHÔNG trả biệt danh trong `alias`/`friendAlias` của `getUserInfo`; với bạn bè, `displayName` = tên bạn nhìn thấy (= biệt danh nếu có) còn `zaloName` = tên Zalo gốc (ví dụ `displayName="Cô Hằng (Phòng KTKĐ)" zaloName="Thanh Hang" alias=""`). Danh sách `getAliasList` cũng không đủ người. Code cũ coi `displayName` là tên thật nên lưu biệt danh vào cột `display_name`, tin nhắn kế tiếp (mang tên gốc `dName`) ghi đè → trả về tên mặc định. Đã sửa ở `src/utils/profileUtils.ts` `extractUserProfile`: nếu không có alias mà `displayName !== zaloName` thì `alias = displayName`, `displayName = zaloName`; `UserProfilePopup` dùng chung hàm. `refreshContactAlias` (chạy mỗi 24h khi có tin / mở hội thoại) sẽ tự bù biệt danh còn thiếu. Dữ liệu cũ: ~85 dòng có `alias == display_name` sẽ tự sửa ở lần `getUserInfo` kế tiếp. KHÔNG dùng lại `displayName` của getUserInfo làm tên thật.
 
+- **Ghi chú sau lần gộp bản 26.10.3 của tác giả** (đã kiểm tra typecheck sạch, chưa chạy thử trong app):
+  - Nhận tin Zalo: tác giả chuyển sang `listener.start({ retryOnClose: true })` + handler `disconnected` + `ZCA_RETRY_WATCHDOG_MS`. Giữ cách của họ; phần của ta (watchdog ping, mã 3000/3003, `pendingCatchUp`, `old_messages`) chạy cùng. Handler `closed` không còn "chỉ một mình" như Commit 1 mô tả.
+  - Ẩn "Đã xem" (`hideSeen`): chặn trong `liveReadSync.send` (`src/ui/lib/chat/liveReadSync.ts`, mọi kênh) + `markConversationRead.syncZaloRead` + `channelIpc.markAsRead`. `sendSeenHelper.ts` nay chỉ gọi `liveReadSync` nên không cần chặn riêng.
+  - `flashMuted`: tác giả thêm cài đặt thông báo theo tài khoản ở `src/ui/lib/notifSettingsOverrides.ts` (`FIELDS`, `normalizeNotifOverrides`) — đã thêm `flashMuted` vào đó; thêm tùy chọn thông báo mới thì thêm vào cả hai chỗ.
+  - Tooltip react: nút/chip cảm xúc nay là `MessageReactionCorner.tsx` (tác giả), có prop `reactorTitle` do `ChatWindow.reactorTooltip` truyền vào.
+  - Tab "Đã ghim": `'pinned'` thêm vào `ConversationListTab` (`src/ui/lib/chat/conversationListFilters.ts`) — kiểu này do tác giả quản lý.
+  - Tìm toàn cục: `GlobalSearchPanel` dùng `lib/chat/conversationSearch` của tác giả (đã xử lý đ→d), bản `foldSearchText` cũ ở đây đã bỏ; vẫn cần kiểm tra "tìm theo DB cho mọi chế độ" còn hoạt động.
+  - `useZaloEvents` handler `event:message`: KHÔNG ghi `alias` từ `aliasMap` (tác giả có dòng `...(alias ? { alias } : {})`, đã bỏ vì làm biệt danh cũ quay lại); `is_replied` do `replyStateForIncoming` của tác giả quyết định.
+  - Nhánh `backup-before-26.10.3` giữ bản `custom` trước lần gộp (xóa khi chắc chắn không cần).
+
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
 - `listener.requestOldMessages` của zca-js **chỉ trả các tin phiên web chưa nhận**, không phải API lịch sử; lật trang bằng `lastId` (kể cả gửi `first:false`) Zalo không trả lời. Đã bỏ hướng này.
