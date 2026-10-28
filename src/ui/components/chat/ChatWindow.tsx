@@ -70,7 +70,7 @@ import ForwardMessageModal from './ForwardMessageModal';
 import PollBubble from './PollBubble';
 import TelegramPollBubble from './TelegramPollBubble';
 import FriendRequestBar from './FriendRequestBar';
-import { ReactionContextMenu, ReactionPopup, parseReactions, parseReactionsFull } from './ReactionComponents';
+import { ReactionContextMenu, ReactionPopup, displayReactionEmoji, parseReactions, parseReactionsFull } from './ReactionComponents';
 import { MessageReactionCorner, useReactionHoverPicker } from './MessageReactionCorner';
 import { getReactionChoices, sameReaction, useTelegramChatReactions } from '@/lib/chat/reactionChoices';
 import {
