@@ -6,7 +6,7 @@
  * menu ⋮ đang bật đều hiện thành nhãn có ✕ dưới thanh tab (lọc kênh trước đây không hiện gì).
  */
 
-export type ConversationListTab = 'all' | 'unread' | 'unreplied' | 'others' | 'label';
+export type ConversationListTab = 'all' | 'unread' | 'unreplied' | 'others' | 'label' | 'pinned';
 
 export interface ConversationListFilterState {
   filter: ConversationListTab;
