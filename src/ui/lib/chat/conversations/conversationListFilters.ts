@@ -6,7 +6,7 @@
  * ⋮ menu that is on now shows as a label with ✕ under the tab bar (the channel filter used to show nothing).
  */
 
-export type ConversationListTab = 'all' | 'unread' | 'unreplied' | 'others' | 'label';
+export type ConversationListTab = 'all' | 'unread' | 'unreplied' | 'others' | 'label' | 'pinned';
 
 export interface ConversationListFilterState {
   filter: ConversationListTab;
