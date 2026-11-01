@@ -205,7 +205,7 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 > AI tiếp quản: đọc mục này TRƯỚC, rồi ghi tiến độ vào `TIEN_DO.md` (xem 7.4). Claude sẽ đọc `TIEN_DO.md` + `git log` để theo dõi.
 
 ### 7.1 Git
-- Nhánh `custom` đã gộp thành công bản tác giả **v26.10.4** (`ddcfbbe`). Nhánh `backup-before-26.10.4` giữ bản trước lần gộp 26.10.4.
+- Nhánh `custom` đã gộp thành công bản tác giả **v26.10.4** (`ddcfbbe`) và đã push lên `myfork/custom` ở commit `2cbb580`. Nhánh `backup-before-26.10.4` giữ bản trước lần gộp 26.10.4.
 - Cấu trúc thư mục mới của tác giả đã được cập nhật toàn bộ cho các phần sửa của custom.
 - Cả hai typecheck (`tsconfig.electron.json` và `tsconfig.json`) đều đạt 0 lỗi (exit 0).
 - 8 điểm tính năng cốt lõi (old_messages, hideSeen, flashMuted, reactorTitle, tab pinned, profile alias, UI_PREF_KEYS, foldSearchText) đã được kiểm chứng hoạt động đầy đủ trên cấu trúc mới.
