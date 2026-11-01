@@ -10,7 +10,7 @@
 import { Channel } from '../../../configs/channels/channelConfig';
 import { getAdapter } from './adapters/registry';
 import type { SendAttachmentsParams } from './adapters/ChannelAdapter';
-import { isPrivacyEnabled } from '../store/privacyStore';
+import { isPrivacyEnabled } from '@/store/privacyStore';
 
 // Re-export types for backward compatibility
 export type {

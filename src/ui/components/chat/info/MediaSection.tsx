@@ -12,7 +12,7 @@
  * rows received so far). Shows "Không tải được - Thử lại" (Failed to load, retry) (retries with backoff / when scrolled to the end / on reconnect);
  * the preview keeps the tiles already shown. The image viewer opens through the paged collection (MediaGalleryViewer), as in the chat frame.
  */
-import { useAppStore } from '@/store/appStore';
+import { useAppStore } from '@/store/app/appStore';
 import { fileTypeIconSrc } from '@/lib/chat/fileTypeIcons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAccountStore } from '@/store/accounts/accountStore';
