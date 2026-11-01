@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { foldSearchText } from '../../../../shared/searchFold';
+import { foldSearchText } from '../../../../shared/chat/searchFold';
 import DataAccessor, { isReadFailure } from '@/lib/data/DataAccessor';
 import ipc, { buildZaloAuth } from '@/lib/ipc';
 import { useAccountStore } from '@/store/accounts/accountStore';

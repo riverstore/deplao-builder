@@ -12,7 +12,7 @@
  * dòng đã nhận), hiện "Không tải được — Thử lại" (tự thử lại theo backoff / khi cuộn tới cuối / kết nối lại);
  * xem trước giữ các ô đang có. Trình xem ảnh mở qua bộ sưu tập phân trang (MediaGalleryViewer) như khung chat.
  */
-import { useAppStore } from '@/store/appStore';
+import { useAppStore } from '@/store/app/appStore';
 import { fileTypeIconSrc } from '@/lib/chat/fileTypeIcons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAccountStore } from '@/store/accounts/accountStore';

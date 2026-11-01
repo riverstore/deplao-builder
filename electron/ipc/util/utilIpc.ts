@@ -1,6 +1,6 @@
 import { ipcMain, net } from 'electron';
-import { ensureGoogleFont } from '../../src/services/font/FontCacheService';
-import Logger from '../../src/utils/Logger';
+import { ensureGoogleFont } from '../../../src/services/font/FontCacheService';
+import Logger from '../../../src/utils/Logger';
 
 /**
  * Utility IPC handlers - fetch URLs from main process (no CORS restrictions)

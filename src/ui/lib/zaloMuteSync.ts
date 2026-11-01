@@ -4,10 +4,10 @@
  * nên bật lại thông báo trên điện thoại thì lần kết nối sau Deplao cũng bỏ theo.
  */
 import ipc, { buildZaloAuth } from '@/lib/ipc';
-import { useAccountStore } from '@/store/accountStore';
-import { useAppStore } from '@/store/appStore';
-import { useEmployeeStore } from '@/store/employeeStore';
-import { isZalo } from '@/lib/channelHelper';
+import { useAccountStore } from '@/store/accounts/accountStore';
+import { useAppStore } from '@/store/app/appStore';
+import { useEmployeeStore } from '@/store/employee/employeeStore';
+import { isZalo } from '@/lib/channels/channelHelper';
 import Logger from '../../utils/Logger';
 
 interface ZaloMuteEntry {

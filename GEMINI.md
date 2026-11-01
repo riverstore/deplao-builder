@@ -205,23 +205,23 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 > AI tiếp quản: đọc mục này TRƯỚC, rồi ghi tiến độ vào `TIEN_DO.md` (xem 7.4). Claude sẽ đọc `TIEN_DO.md` + `git log` để theo dõi.
 
 ### 7.1 Git
-- Nhánh `custom` ở `6c1bdbb` (đã push lên `myfork/custom`), dựa trên bản tác giả **26.10.3**. Nhánh `backup-before-26.10.3` giữ bản trước lần gộp 26.10.3.
-- **Tác giả đã ra `v26.10.4`** (`origin/main` = `ddcfbbe`, 1 commit, ~737 file đổi). CHƯA gộp. Tác giả **sắp xếp lại thư mục** (ví dụ `fileIpc.ts` → `electron/ipc/file/`, `ConversationList.tsx` → `components/chat/conversations/`, `appStore.ts` → `store/app/`, `ZaloLoginHelper.ts` → `src/utils/zalo/`, `useZaloEvents.ts` → `hooks/chat/`, `liveReadSync.ts` → `lib/chat/read/`…). Git thường theo dõi đổi tên khi rebase, nhưng khi xung đột phải sửa ở **đường dẫn mới**.
-- Merge thử (`git merge-tree`) báo xung đột ở 15 file: `electron/ipc/file/fileIpc.ts`, `App.tsx`, `ChatWindow.tsx`, `composer/MessageInput.tsx`, `conversations/ConversationList.tsx`, `header/ChatHeader.tsx`, `common/inputs/GroupPicker.tsx`, `common/profile/UserProfilePopup.tsx`, `layout/topbar/TopBar.tsx`, `settings/Settings.tsx`, `hooks/chat/useZaloEvents.ts`, `lib/chat/read/liveReadSync.ts`, `store/app/appStore.ts`, `store/chat/chatStore.ts`, `src/utils/zalo/ZaloLoginHelper.ts`.
-- Việc đang CHƯA commit: `src/ui/store/appStore.ts` có 2 dòng `rendererLog(... '[hidden-trace]' ...)` (xem 7.2) — chỉ để truy vết, gỡ sau khi xong.
+- Nhánh `custom` đã gộp thành công bản tác giả **v26.10.4** (`ddcfbbe`). Nhánh `backup-before-26.10.4` giữ bản trước lần gộp 26.10.4.
+- Cấu trúc thư mục mới của tác giả đã được cập nhật toàn bộ cho các phần sửa của custom.
+- Cả hai typecheck (`tsconfig.electron.json` và `tsconfig.json`) đều đạt 0 lỗi (exit 0).
+- 8 điểm tính năng cốt lõi (old_messages, hideSeen, flashMuted, reactorTitle, tab pinned, profile alias, UI_PREF_KEYS, foldSearchText) đã được kiểm chứng hoạt động đầy đủ trên cấu trúc mới.
+- Việc đang CHƯA commit: `src/ui/store/app/appStore.ts` có 2 dòng `rendererLog(... '[hidden-trace]' ...)` (xem 7.2) — chỉ để truy vết lỗi kính lúp đỏ, gỡ sau khi xong.
 
 ### 7.2 Lỗi đang điều tra: kính lúp ô tìm kiếm đỏ sai
-- Tính năng "hội thoại ẩn bằng PIN của Zalo" (ZL-03) là của TÁC GIẢ (`components/chat/zalo/ZaloHiddenMark.tsx`, `hooks/useZaloHidden.ts`, `src/services/zalo/zaloHiddenConversations.ts`). Kính lúp đỏ khi `appStore.hiddenConversations[zaloId].size > 0`.
+- Tính năng "hội thoại ẩn bằng PIN của Zalo" (ZL-03) là của TÁC GIẢ (`components/chat/zalo/hidden/ZaloHiddenMark.tsx`, `hooks/zalo/useZaloHidden.ts`, `src/services/zalo/zaloHiddenConversations.ts`). Kính lúp đỏ khi `appStore.hiddenConversations[zaloId].size > 0`.
 - Người dùng báo: 3 người đang ẩn thật (DB `contacts.zalo_hidden=1`: contact `3715591841337200611`, `8159312413219300936`, `8106672960253598963`, tài khoản `2291023224429361336`; 3 dòng này có `last_message_time=0` do `setContactAlias` tạo dòng tối thiểu) nhưng kính lúp CHỈ đỏ khi người ẩn có tin mới; không có tin mới thì xám. Trước đó còn báo "đỏ mà không thấy tooltip".
 - Đã đọc luồng: DB `getContactsWithFlags` → `appStore.loadFlags` (gom `hiddenSet`) → `ZaloHiddenMark`; cập nhật qua `db:contactFlagsChanged` → `applyContactFlags`; main đọc lại từ Zalo qua `refreshZaloHidden` (tối đa 6 giờ/lần, `whenStartupSettled`). Không thấy lỗi tĩnh. Đã thêm log `[hidden-trace]` ở `loadFlags` và `applyContactFlags`.
 - Việc cần làm: người dùng chạy app, gửi các dòng `[hidden-trace]` trong Cài đặt → Nhật ký (lúc mở app + lúc có tin mới từ người ẩn). Nếu `loadFlags` báo `0 hội thoại ẩn` dù DB có 3 → lỗi ở đường IPC/nạp cờ; nếu báo 3 mà vẫn xám → lỗi ở `ZaloHiddenMark` / tài khoản truyền vào. Sửa theo bằng chứng, KHÔNG đoán. Kiểm tra lại sau khi gộp 26.10.4 vì tác giả có thể đã sửa.
 
 ### 7.3 Việc nên làm tiếp (theo thứ tự)
-1. Đọc `TIEN_DO.md`. Hỏi người dùng muốn gộp 26.10.4 ngay hay xử lý lỗi kính lúp trước.
-2. Gộp 26.10.4 theo mục 4. Trước khi rebase: `git branch backup-before-26.10.4 custom`. Mỗi xung đột: giữ code tác giả rồi gắn lại ý của mục 5 ở file ĐƯỜNG DẪN MỚI. Xong chạy 2 lệnh typecheck (mục 3).
-3. Sau gộp, kiểm tra các điểm hay mất: handler `old_messages` + `pendingCatchUp`, `hideSeen` trong `liveReadSync.send`, `flashMuted` trong `notifSettingsOverrides.ts`, `reactorTitle` trong `MessageReactionCorner`, `'pinned'` trong `ConversationListTab`, `extractUserProfile` (alias/displayName), `savePref`/`UI_PREF_KEYS`, các ô tìm dùng `foldSearchText`.
-4. Gỡ `[hidden-trace]` và (khi người dùng xác nhận biệt danh ổn) `[alias-trace]`.
-5. Cập nhật mục 5/7 của file này; commit khi người dùng đồng ý; người dùng tự push (sau rebase cần `--force-with-lease`, xem mục 4).
+1. Commit các file sửa đường dẫn sau gộp 26.10.4 (khi người dùng đồng ý).
+2. Người dùng push nhánh `custom` lên `myfork/custom` bằng `git push --force-with-lease myfork custom`.
+3. Chạy app dev (`npm run dev`) để kiểm tra giao diện và thu thập log `[hidden-trace]` điều tra lỗi kính lúp đỏ.
+4. Gỡ `[hidden-trace]` và `[alias-trace]` sau khi hoàn tất.
 
 ### 7.4 Cách để Claude theo dõi tiến độ
 - Cập nhật `TIEN_DO.md` ở gốc repo (file chỉ có trên máy, nằm trong `.git/info/exclude`, KHÔNG commit). Mỗi bước xong ghi 1 dòng: `[ngày giờ] làm gì → kết quả (typecheck pass/fail, file đã đụng)`. Ghi rõ "đang ở đâu" và "bước kế tiếp" ở đầu file; xung đột chưa giải quyết thì liệt kê file.

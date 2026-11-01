@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { foldSearchText } from '../../../shared/searchFold';
+import { foldSearchText } from '../../../../shared/chat/searchFold';
 import { useShallow } from 'zustand/react/shallow';
 import { useAccountStore } from '@/store/accounts/accountStore';
 import { useAppStore, LabelData } from '@/store/app/appStore';
