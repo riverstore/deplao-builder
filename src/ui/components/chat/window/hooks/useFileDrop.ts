@@ -44,8 +44,10 @@ export function useFileDrop(activeThreadId: string | null) {
 
     if (!activeThreadId) return;
     // Đọc ngay trong sự kiện (sau đó dữ liệu kéo bị khoá): file thật, hoặc link ảnh khi kéo từ trang web / app khác.
-    // MessageInput xử lý (tải ảnh từ link, phân loại ảnh / video / file, gửi qua hàng đợi)
-    window.dispatchEvent(new CustomEvent('chat:dragDropFiles', { detail: readDropPayload(e.dataTransfer) }));
+    // Thả vào vùng nội dung ChatWindow -> gửi luôn ngay lập tức (instant: true)
+    window.dispatchEvent(new CustomEvent('chat:dragDropFiles', {
+      detail: { ...readDropPayload(e.dataTransfer), instant: true },
+    }));
   }, [activeThreadId]);
 
   return { isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop };

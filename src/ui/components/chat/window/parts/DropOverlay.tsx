@@ -3,10 +3,18 @@
  */
 
 
-export function DropOverlay() {
+export interface DropOverlayProps {
+  title?: string;
+  subtitle?: string;
+}
+
+export function DropOverlay({
+  title = 'Thả file / ảnh để gửi ngay',
+  subtitle = 'Gửi trực tiếp đến hội thoại này',
+}: DropOverlayProps = {}) {
   return (
     <div
-      className="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-sm border-2 border-dashed border-blue-500 pointer-events-none"
+      className="absolute inset-0 z-40 flex items-center justify-center bg-background/75 backdrop-blur-sm border-2 border-dashed border-blue-500 pointer-events-none"
       onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -18,8 +26,8 @@ export function DropOverlay() {
           <polyline points="17 8 12 3 7 8"/>
           <line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
-        <p className="text-blue-400 font-medium text-sm">Thả file / ảnh để gửi</p>
-        <p className="text-muted-foreground text-xs">Hỗ trợ ảnh, video, file</p>
+        <p className="text-blue-400 font-medium text-sm">{title}</p>
+        <p className="text-muted-foreground text-xs">{subtitle}</p>
       </div>
     </div>
   );

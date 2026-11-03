@@ -947,7 +947,9 @@ export default function TelegramPostDiscussion({ accountId, channelId, postId, o
             if (!discussion?.canWrite) return;
             event.preventDefault();
             event.stopPropagation();
-            window.dispatchEvent(new CustomEvent('chat:dragDropFiles', { detail: readDropPayload(event.dataTransfer) }));
+            window.dispatchEvent(new CustomEvent('chat:dragDropFiles', {
+              detail: { ...readDropPayload(event.dataTransfer), instant: true },
+            }));
           }}
           className="min-h-0 flex-1 overflow-y-auto px-3 py-3 [overflow-anchor:none]"
         >
