@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, protocol, net, Notification, safeStorage, powerMonitor } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, Tray, Menu, MenuItemConstructorOptions, nativeImage, protocol, net, Notification, safeStorage, powerMonitor } from 'electron';
 // Public API v1: ghi nhận mọi IPC handler để API/plugin gọi đúng logic của UI (phải đứng trước các import IPC).
 import { ipcHandlerRegistry } from './ipc/handlerRegistry';
 import * as path from 'path';
@@ -291,6 +291,78 @@ function loadDevRenderer(reason: string, delayMs = 0): void {
   }, delayMs);
 }
 
+/**
+ * Context menu chuẩn cho các textbox, ô soạn thảo và vùng chọn văn bản.
+ */
+function setupWebContentsContextMenu(contents: Electron.WebContents) {
+  contents.on('context-menu', (_event, params) => {
+    const { isEditable, selectionText, editFlags } = params;
+    const win = BrowserWindow.fromWebContents(contents);
+    if (!win || win.isDestroyed()) return;
+
+    if (isEditable) {
+      const template: MenuItemConstructorOptions[] = [
+        { role: 'undo', label: 'Hoàn tác', accelerator: 'CmdOrCtrl+Z', enabled: editFlags.canUndo },
+        { role: 'redo', label: 'Làm lại', accelerator: 'CmdOrCtrl+Y', enabled: editFlags.canRedo },
+        { type: 'separator' },
+        { role: 'cut', label: 'Cắt', accelerator: 'CmdOrCtrl+X', enabled: editFlags.canCut },
+        { role: 'copy', label: 'Sao chép', accelerator: 'CmdOrCtrl+C', enabled: editFlags.canCopy },
+        { role: 'paste', label: 'Dán', accelerator: 'CmdOrCtrl+V', enabled: editFlags.canPaste },
+        { role: 'pasteAndMatchStyle', label: 'Dán thuần văn bản', accelerator: 'CmdOrCtrl+Shift+V', enabled: editFlags.canPaste },
+        { role: 'delete', label: 'Xóa', enabled: editFlags.canDelete },
+        { type: 'separator' },
+        { role: 'selectAll', label: 'Chọn tất cả', accelerator: 'CmdOrCtrl+A', enabled: editFlags.canSelectAll },
+      ];
+      if (SHOW_DEV_TOOLS) {
+        template.push({ type: 'separator' });
+        template.push({
+          label: 'Kiểm tra phần tử',
+          click: () => contents.inspectElement(params.x, params.y),
+        });
+      }
+      const menu = Menu.buildFromTemplate(template);
+      menu.popup({ window: win });
+      return;
+    }
+
+    if (selectionText && selectionText.trim().length > 0) {
+      const template: MenuItemConstructorOptions[] = [
+        { role: 'copy', label: 'Sao chép', accelerator: 'CmdOrCtrl+C', enabled: editFlags.canCopy },
+        { type: 'separator' },
+        { role: 'selectAll', label: 'Chọn tất cả', accelerator: 'CmdOrCtrl+A', enabled: editFlags.canSelectAll },
+      ];
+      if (SHOW_DEV_TOOLS) {
+        template.push({ type: 'separator' });
+        template.push({
+          label: 'Kiểm tra phần tử',
+          click: () => contents.inspectElement(params.x, params.y),
+        });
+      }
+      const menu = Menu.buildFromTemplate(template);
+      menu.popup({ window: win });
+      return;
+    }
+
+    if (SHOW_DEV_TOOLS) {
+      const menu = Menu.buildFromTemplate([
+        { role: 'reload', label: 'Tải lại' },
+        {
+          label: 'Kiểm tra phần tử',
+          click: () => contents.inspectElement(params.x, params.y),
+        },
+      ]);
+      menu.popup({ window: win });
+      return;
+    }
+
+    _event.preventDefault();
+  });
+}
+
+app.on('web-contents-created', (_event, contents) => {
+  setupWebContentsContextMenu(contents);
+});
+
 function createWindow() {
   const isMac = process.platform === 'darwin';
 
@@ -343,7 +415,6 @@ function createWindow() {
     mainWindow.webContents.on('devtools-opened', () => {
       mainWindow?.webContents.closeDevTools();
     });
-    mainWindow.webContents.on('context-menu', (e) => e.preventDefault());
   }
 
   let initialWindowShown = false;
