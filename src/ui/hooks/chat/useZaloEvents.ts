@@ -1389,7 +1389,20 @@ export function useZaloEvents() {
 
       // Update contact in store — updateContact handles both existing and new contacts
       // (new contacts get safe defaults, then DB full load will enrich them)
-      const lastMsgPreview = buildMessagePreview(contentRaw, rawMsgType, isImage, content);
+      const rawPreview = buildMessagePreview(contentRaw, rawMsgType, isImage, content);
+      let lastMsgPreview = rawPreview;
+      if (isGroup && rawPreview) {
+        const memberName = useAppStore.getState().groupInfoCache?.[zaloId]?.[threadId]?.members?.find(m => String(m.userId) === uidFrom)?.displayName;
+        const groupSenderName = isSelf
+          ? 'Bạn'
+          : (aliasMap.get(`${zaloId}__${uidFrom}`) || dName || senderInfo?.displayName || senderInfo?.zaloName || memberName || '');
+        if (groupSenderName) {
+          const senderPrefix = `${groupSenderName}: `;
+          if (!rawPreview.startsWith(senderPrefix)) {
+            lastMsgPreview = `${senderPrefix}${rawPreview}`;
+          }
+        }
+      }
       const msgAccount = useAccountStore.getState().accounts.find(a => a.zalo_id === zaloId);
       const msgChannel = (msgAccount?.channel || CHANNEL.ZALO) as string;
       const existingContact = (useChatStore.getState().contacts[zaloId] || []).find(c => c.contact_id === threadId);
@@ -1527,26 +1540,27 @@ export function useZaloEvents() {
               const contactAvatar = avatarOverride || ctact?.avatar_url || undefined;
               const fullPreview = buildMessagePreview(contentRaw, rawMsgType, isImage, content);
               const msgPreview = fullPreview.slice(0, 120);
+              const memberName = isGroup
+                ? useAppStore.getState().groupInfoCache?.[zaloId]?.[threadId]?.members?.find(m => String(m.userId) === uidFrom)?.displayName
+                : '';
+              const groupSenderName = isGroup
+                ? (isSelf ? 'Bạn' : (aliasMap.get(`${zaloId}__${uidFrom}`) || dName || senderInfo?.displayName || senderInfo?.zaloName || memberName || ''))
+                : '';
               if (showToast) {
-                // Người gửi trong nhóm: tên gợi nhớ mình đặt cho họ, tên trong tin, tên trong danh sách thành viên
-                const memberName = isGroup
-                  ? useAppStore.getState().groupInfoCache?.[zaloId]?.[threadId]?.members?.find(m => String(m.userId) === uidFrom)?.displayName
-                  : '';
                 useInAppNotifyStore.getState().push({
                   accountId: zaloId,
                   threadId,
                   threadType: isGroup ? 1 : 0,
                   msgId: String(message.data?.msgId || ''),
                   conversation: contactName,
-                  sender: isGroup ? (aliasMap.get(`${zaloId}__${uidFrom}`) || dName || memberName || '') : '',
+                  sender: groupSenderName,
                   text: fullPreview,
                 });
               }
               if (!showDesktop) return;
               // For group messages, prepend sender name to message text
-              const senderDisplayName = alias || realName || '';
-              const msgText = isGroup && senderDisplayName
-                ? `${senderDisplayName}: ${msgPreview}`
+              const msgText = isGroup && groupSenderName && !msgPreview.startsWith(`${groupSenderName}: `)
+                ? `${groupSenderName}: ${msgPreview}`
                 : msgPreview;
               const notifTitle = `[${getAccountDisplayName(zaloId)}] ${contactName}`;
               showDesktopNotification(

@@ -2484,7 +2484,10 @@ export default function ConversationList() {
             accountAvatar: account.avatar_url || '',
             channel: (account.channel || CHANNEL.ZALO) as Channel,
             threadId,
-            preview: formatLastMessage(contact?.last_message),
+            preview: (() => {
+              const p = formatLastMessage(contact?.last_message);
+              return typeof p === 'string' ? p : (p.prefix ? `${p.prefix}📂 ${p.fileName}` : `📂 ${p.fileName}`);
+            })(),
             timeLabel: contact?.last_message_time ? formatTime(contact.last_message_time) : '',
             unread: Number(contact?.unread_count) || 0,
           }))}
@@ -3345,6 +3348,7 @@ export default function ConversationList() {
                         if (typeof preview !== 'string') {
                           return (
                             <span className="flex items-center gap-1.5 min-w-0">
+                              {preview.prefix && <span className="flex-shrink-0 font-medium text-foreground/80">{preview.prefix}</span>}
                               <img src={preview.iconSrc} alt="" className="file-type-icon w-6 h-6 flex-shrink-0 block" draggable={false} />
                               <span className="truncate" title={preview.fileName}>{preview.fileName}</span>
                             </span>
@@ -3603,30 +3607,40 @@ function MyDocumentsIcon() {
   );
 }
 
-interface FilePreview { fileName: string; iconSrc: string }
+interface FilePreview { prefix?: string; fileName: string; iconSrc: string }
 
-function filePreview(fileName: string | undefined, fileExt?: string): FilePreview {
+function filePreview(fileName: string | undefined, fileExt?: string, prefix?: string): FilePreview {
   const name = String(fileName || '').trim();
   return name && name !== 'File đính kèm'
-    ? { fileName: name, iconSrc: fileTypeIconSrc(name, fileExt) }
-    : { fileName: 'File đính kèm', iconSrc: fileTypeIconSrc('') };
+    ? { prefix, fileName: name, iconSrc: fileTypeIconSrc(name, fileExt) }
+    : { prefix, fileName: 'File đính kèm', iconSrc: fileTypeIconSrc('') };
 }
 
 /** Dòng xem trước tin cuối; tin file trả về FilePreview để hiển thị icon theo loại file */
 function formatLastMessage(msg: string | undefined): string | FilePreview {
   if (!msg) return '';
+
+  // Hỗ trợ bóc tách tiền tố người gửi tin nhắn nhóm (dạng "Tên: ..." hoặc "Bạn: ...")
+  let prefix = '';
+  let content = msg;
+  const prefixMatch = msg.match(/^([^:\n]{1,50}:\s+)(.*)$/s);
+  if (prefixMatch && !msg.startsWith('{')) {
+    prefix = prefixMatch[1];
+    content = prefixMatch[2];
+  }
+
   // last_message được lưu sẵn dạng "📂 <tên file>" (DB và useZaloEvents) → đổi icon theo loại file khi hiển thị,
   // áp dụng được cho cả tin đã lưu trước đây
-  if (msg.startsWith('📂')) return filePreview(msg.slice('📂'.length));
-  if (!msg.startsWith('{')) {
+  if (content.startsWith('📂')) return filePreview(content.slice('📂'.length), undefined, prefix || undefined);
+  if (!content.startsWith('{')) {
     // Handle legacy "text[Type]" format stored from old Zalo API responses
     // e.g. "0[Hình ảnh]" (empty text + image) or "Hello[Hình ảnh]" (text + image)
-    const bracketMatch = msg.match(/^(.*?)\[([^\]]+)\]$/);
+    const bracketMatch = content.match(/^(.*?)\[([^\]]+)\]$/);
     if (bracketMatch) {
       const textPart = bracketMatch[1];
       const typePart = bracketMatch[2];
       // Return the text part if it's meaningful (not empty / "0" / "null")
-      if (textPart && textPart !== '0' && textPart !== 'null' && textPart.trim()) return textPart;
+      if (textPart && textPart !== '0' && textPart !== 'null' && textPart.trim()) return prefix + textPart;
       // Otherwise map type label to emoji label
       const typeMap: Record<string, string> = {
         'Hình ảnh': '🖼 Hình ảnh',
@@ -3637,24 +3651,24 @@ function formatLastMessage(msg: string | undefined): string | FilePreview {
         'Giọng nói': '🎙 Tin nhắn thoại',
         'Âm thanh': '🎙 Tin nhắn thoại',
       };
-      return typeMap[typePart] ?? `[${typePart}]`;
+      return prefix + (typeMap[typePart] ?? `[${typePart}]`);
     }
-    return msg;
+    return prefix + content;
   }
   try {
-    const p = JSON.parse(msg);
+    const p = JSON.parse(content);
     const mt = (p?.msgType || '').toLowerCase();
     // chat.recommended với action cuộc gọi (recommened.calltime / recommened.misscall)
     const action = String(p?.action || '');
-    if (action === 'recommened.misscall') return '📵 Cuộc gọi nhỡ';
+    if (action === 'recommened.misscall') return prefix + '📵 Cuộc gọi nhỡ';
     if (action === 'recommened.calltime') {
       const params = (() => { try { const pr = p?.params; return typeof pr === 'string' ? JSON.parse(pr) : (pr || {}); } catch { return {}; } })();
       const secs = params.duration || 0;
       if (secs > 0) {
         const m = Math.floor(secs / 60), s = secs % 60;
-        return `Cuộc gọi (${m > 0 ? `${m}p ` : ''}${s}s)`;
+        return prefix + `Cuộc gọi (${m > 0 ? `${m}p ` : ''}${s}s)`;
       }
-      return '📞 Cuộc gọi';
+      return prefix + '📞 Cuộc gọi';
     }
     // Handle chat.recommended messages
     if (action.startsWith('recommened.') || action.startsWith('chat.recommended')) {
@@ -3665,79 +3679,79 @@ function formatLastMessage(msg: string | undefined): string | FilePreview {
         const mediaTitle = params.mediaTitle || params.src || '';
         // Only show title, not description (matching Zalo's conversation list style)
         if (mediaTitle) {
-          return mediaTitle;
+          return prefix + mediaTitle;
         }
         // Fallback to URL hostname if no title
         const href = p?.href || p?.title || '';
         if (href && href.includes('://')) {
           try {
             const url = new URL(href);
-            return `Link: ${url.hostname}`;
+            return prefix + `Link: ${url.hostname}`;
           } catch { }
         }
-        return 'Link: ';
+        return prefix + 'Link: ';
       }
 
       // Other recommended messages (text suggestions, etc.)
       const textContent = params.content || params.message || params.text || p?.content || p?.msg;
       if (textContent && typeof textContent === 'string' && textContent.trim()) {
-        return textContent;
+        return prefix + textContent;
       }
-      return '[Tin nhắn gợi ý]';
+      return prefix + '[Tin nhắn gợi ý]';
     }
     // Call messages (legacy format)
     if (mt.includes('call') || p?.call_id || p?.callId || p?.callType !== undefined) {
-      if (p?.missed || p?.status === 2) return '📵 Cuộc gọi nhỡ';
+      if (p?.missed || p?.status === 2) return prefix + '📵 Cuộc gọi nhỡ';
       const secs = p?.duration || p?.call_duration;
       if (secs) {
         const m = Math.floor(secs / 60), s = secs % 60;
-        return `Cuộc gọi (${m > 0 ? `${m}p ` : ''}${s}s)`;
+        return prefix + `Cuộc gọi (${m > 0 ? `${m}p ` : ''}${s}s)`;
       }
-      return '📞 Cuộc gọi';
+      return prefix + '📞 Cuộc gọi';
     }
     // Voice / audio messages
     if (mt.includes('voice') || mt.includes('audio')) {
       const secs = p?.duration || 0;
-      return `🎙 Tin nhắn thoại${secs ? ` (${secs}s)` : ''}`;
+      return prefix + `🎙 Tin nhắn thoại${secs ? ` (${secs}s)` : ''}`;
     }
     // Sticker
     if (mt.includes('sticker') || p?.sticker_id || p?.stickerId) {
-      return '🎭 Nhãn dán';
+      return prefix + '🎭 Nhãn dán';
     }
     // GIF
     if (mt.includes('gif')) {
-      return '🎬 GIF';
+      return prefix + '🎬 GIF';
     }
     // Video
     if (mt.includes('video')) {
-      return '🎥 Video';
+      return prefix + '🎥 Video';
     }
     // File with title - only when msgType is file OR content has file-specific fields
     if (mt.includes('file') || mt === 'share.file') {
       const fileParams = (() => { try { return typeof p?.params === 'string' ? JSON.parse(p.params) : (p?.params || {}); } catch { return {}; } })();
-      return filePreview(p?.title, fileParams?.fileExt);
+      return filePreview(p?.title, fileParams?.fileExt, prefix || undefined);
     }
     // Location
     if (mt === 'chat.location.new') {
       const desc = p?.description || '';
-      return desc ? `📍 ${desc}` : '📍 [Vị trí]';
+      return prefix + (desc ? `📍 ${desc}` : '📍 [Vị trí]');
     }
     // Parse params for further checks
     const par = (() => { try { return typeof p?.params === 'string' ? JSON.parse(p.params) : (p?.params || {}); } catch { return {}; } })();
     // File heuristic: title + file-specific fields
-    if (p?.title && (par?.fileSize || par?.fileExt || par?.fileUrl || p?.normalUrl || p?.fileUrl)) return filePreview(p.title, par?.fileExt);
+    if (p?.title && (par?.fileSize || par?.fileExt || par?.fileUrl || p?.normalUrl || p?.fileUrl)) return filePreview(p.title, par?.fileExt, prefix || undefined);
     // Image (by URL fields) - but prefer text content if the message has both
     if (p?.href || par?.hd || par?.rawUrl || p?.thumb) {
       const textContent = (typeof p?.content === 'string' ? p.content : null) || (typeof p?.msg === 'string' ? p.msg : null);
-      if (textContent && textContent.trim() && textContent !== '0' && textContent !== 'null') return textContent;
-      return '🖼 Hình ảnh';
+      if (textContent && textContent.trim() && textContent !== '0' && textContent !== 'null') return prefix + textContent;
+      return prefix + '🖼 Hình ảnh';
     }
     // title without file markers → plain text (reminder, link preview, etc.)
-    if (p?.title && typeof p.title === 'string') return p.title;
+    if (p?.title && typeof p.title === 'string') return prefix + p.title;
     // Wrapped text
-    if (p?.content && typeof p.content === 'string') return p.content;
-    if (p?.msg && typeof p.msg === 'string') return p.msg;
-    return '[Đính kèm]';
+    if (p?.content && typeof p.content === 'string') return prefix + p.content;
+    if (p?.msg && typeof p.msg === 'string') return prefix + p.msg;
+    return prefix + '[Đính kèm]';
   } catch {}
   return msg;
 }

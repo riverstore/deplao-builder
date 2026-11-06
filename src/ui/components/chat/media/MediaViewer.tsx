@@ -100,6 +100,7 @@ export default function MediaViewer({
   const [useFallback, setUseFallback] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [saving, setSaving] = useState(false);
+  const [isWindowMaximized, setIsWindowMaximized] = useState(false);
   const transformRef = useRef<ReactZoomPanPinchRef>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -218,7 +219,7 @@ export default function MediaViewer({
       return;
     }
     if (transformRef.current) {
-      transformRef.current.resetTransform(0);
+      transformRef.current.centerView(1, 0);
       setZoomLevel(1);
     }
     setContextMenu(null);
@@ -279,20 +280,72 @@ export default function MediaViewer({
     if (moreNewer && !loadingNewer && imageList.length - 1 - currentIndex < NAV_PREFETCH) onReachEnd?.();
   }, [currentIndex, imageList.length, moreOlder, moreNewer, loadingOlder, loadingNewer, onReachStart, onReachEnd]);
 
+  // Kiểm tra trạng thái phóng to cửa sổ
+  useEffect(() => {
+    ipc.window?.isMaximized?.().then((res: any) => {
+      if (typeof res === 'boolean') setIsWindowMaximized(res);
+    }).catch(() => {});
+  }, []);
+
+  const handleMinimizeWindow = useCallback(() => {
+    ipc.window?.minimize?.();
+  }, []);
+
+  const handleToggleMaximizeWindow = useCallback(async () => {
+    ipc.window?.maximize?.();
+    try {
+      const isMax = await ipc.window?.isMaximized?.();
+      if (typeof isMax === 'boolean') setIsWindowMaximized(isMax);
+      else setIsWindowMaximized(prev => !prev);
+    } catch {
+      setIsWindowMaximized(prev => !prev);
+    }
+  }, []);
+
+  // Điều khiển phóng to / thu nhỏ mượt mà & chính xác qua API của react-zoom-pan-pinch
+  const handleZoomIn = useCallback(() => {
+    transformRef.current?.zoomIn(0.25, 200);
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    transformRef.current?.zoomOut(0.25, 200);
+  }, []);
+
+  // Vừa khít màn hình (Fit to screen) & căn giữa
+  const handleFitToScreen = useCallback(() => {
+    transformRef.current?.centerView(1, 200);
+  }, []);
+
+  // Kích thước thật của ảnh (1:1 / 100% pixel gốc) & căn giữa
+  const handleActualSize = useCallback(() => {
+    if (!transformRef.current || !imgRef.current) return;
+    const img = imgRef.current;
+    const renderedW = img.clientWidth;
+    if (!renderedW || !img.naturalWidth) {
+      transformRef.current.centerView(1, 200);
+      return;
+    }
+    const realScale = Math.max(0.2, Math.min(20, Number((img.naturalWidth / renderedW).toFixed(2))));
+    transformRef.current.centerView(realScale, 200);
+  }, []);
+
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') { onClose(); return; }
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); goNext(); }
     if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); goPrev(); }
     if (e.key === '+' || e.key === '=') {
-      transformRef.current?.zoomIn(0.5, 200);
+      handleZoomIn();
     }
     if (e.key === '-') {
-      transformRef.current?.zoomOut(0.5, 200);
+      handleZoomOut();
     }
     if (e.key === '0') {
-      transformRef.current?.resetTransform(200);
+      handleFitToScreen();
     }
-  }, [onClose, goNext, goPrev]);
+    if (e.key === '1') {
+      handleActualSize();
+    }
+  }, [onClose, goNext, goPrev, handleZoomIn, handleZoomOut, handleFitToScreen, handleActualSize]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -381,14 +434,39 @@ export default function MediaViewer({
   }, [showNotification]);
 
   const handleSave = async () => {
-    if (saving || !viewSrc) return;
+    if (saving) return;
+    const targetUrl = fallbackSrc || viewSrc || displaySrc;
+    if (!targetUrl && !localPath) {
+      showNotification('Không tìm thấy đường dẫn ảnh để tải về', 'error');
+      return;
+    }
     setSaving(true);
     try {
-      const filename = current?.defaultName || viewSrc.split('/').pop()?.split('?')[0] || `image_${Date.now()}.jpg`;
-      const res = await ipc.file?.saveImage({ zaloId: zaloId || 'default', url: viewSrc, filename });
-      if (!res?.success) await openExternally(viewSrc);
-    } catch { await openExternally(viewSrc); }
-    finally { setSaving(false); }
+      const defaultFilename = current?.defaultName
+        || (targetUrl ? targetUrl.split('/').pop()?.split('?')[0] : '')
+        || `anh_${Date.now()}.jpg`;
+      const res = await ipc.file?.saveAs({
+        localPath: localPath || undefined,
+        remoteUrl: targetUrl || undefined,
+        defaultName: defaultFilename,
+        zaloId: zaloId || 'default',
+      });
+      if (res?.canceled) {
+        // Người dùng hủy hộp thoại lưu
+        return;
+      }
+      if (res?.success) {
+        showNotification('Đã lưu ảnh về máy thành công', 'success');
+      } else {
+        // Nếu lưu thất bại, thử mở ngoài app
+        if (targetUrl) await openExternally(targetUrl);
+        else showNotification(`Lưu ảnh thất bại: ${res?.error || 'Lỗi không xác định'}`, 'error');
+      }
+    } catch (err: any) {
+      showNotification(`Lỗi khi lưu ảnh: ${err?.message || err}`, 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!imageList.length) return null;
@@ -400,9 +478,10 @@ export default function MediaViewer({
         {/* Toolbar */}
         <div
           className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/70 to-transparent z-20 pointer-events-none"
+          style={{ WebkitAppRegion: 'no-drag' } as any}
           onClick={e => e.stopPropagation()}
         >
-          <div className="flex items-center gap-3 pointer-events-auto">
+          <div className="flex items-center gap-3 pointer-events-auto" style={{ WebkitAppRegion: 'no-drag' } as any}>
             <span className="text-white/70 text-sm truncate max-w-xs">{currentAlt}</span>
             {hasMany && (
               <span
@@ -413,48 +492,95 @@ export default function MediaViewer({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5 pointer-events-auto">
+          <div className="flex items-center gap-1.5 pointer-events-auto" style={{ WebkitAppRegion: 'no-drag' } as any}>
             {/* Zoom out */}
-            <button onClick={() => transformRef.current?.zoomOut(0.5, 200)}
-              title="Thu nhỏ (-)" disabled={zoomLevel <= 0.25}
-              className="w-8 h-8 rounded-lg bg-foreground/10 hover:bg-foreground/20 flex items-center justify-center text-foreground/80 hover:text-foreground transition-colors disabled:opacity-30">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <button onClick={handleZoomOut}
+              title="Thu nhỏ (-)" disabled={zoomLevel <= 0.16}
+              style={{ WebkitAppRegion: 'no-drag' } as any}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="pointer-events-none"><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
             {/* Zoom level */}
-            <button onClick={() => transformRef.current?.resetTransform(200)}
-              title="Reset zoom (0)"
-              className="text-xs text-foreground/60 hover:text-foreground bg-foreground/10 hover:bg-foreground/20 rounded-lg px-2 h-8 min-w-[44px] transition-colors font-mono">
+            <button onClick={handleFitToScreen}
+              title="Vừa khít màn hình (0)"
+              style={{ WebkitAppRegion: 'no-drag' } as any}
+              className="text-xs text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg px-2 h-8 min-w-[44px] transition-colors font-mono cursor-pointer">
               {Math.round(zoomLevel * 100)}%
             </button>
             {/* Zoom in */}
-            <button onClick={() => transformRef.current?.zoomIn(0.5, 200)}
-              title="Phóng to (+)" disabled={zoomLevel >= 6}
-              className="w-8 h-8 rounded-lg bg-foreground/10 hover:bg-foreground/20 flex items-center justify-center text-foreground/80 hover:text-foreground transition-colors disabled:opacity-30">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <button onClick={handleZoomIn}
+              title="Phóng to (+)" disabled={zoomLevel >= 19.9}
+              style={{ WebkitAppRegion: 'no-drag' } as any}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="pointer-events-none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
-            <div className="w-px h-5 bg-foreground/20 mx-1" />
+            {/* Fit to screen */}
+            <button onClick={handleFitToScreen}
+              title="Vừa khít màn hình (0)"
+              style={{ WebkitAppRegion: 'no-drag' } as any}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pointer-events-none">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+              </svg>
+            </button>
+            {/* 1:1 Actual size */}
+            <button onClick={handleActualSize}
+              title="Kích thước thật của ảnh (100% pixel gốc) (1)"
+              style={{ WebkitAppRegion: 'no-drag' } as any}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors font-mono cursor-pointer">
+              <span className="text-[11px] font-bold tracking-tight pointer-events-none">1:1</span>
+            </button>
+            <div className="w-px h-5 bg-white/20 mx-1" />
             {/* Copy image (straight to the clipboard) */}
             <button onClick={handleCopyImage} title="Copy hình ảnh"
-              className="w-8 h-8 rounded-lg bg-foreground/10 hover:bg-foreground/20 flex items-center justify-center text-foreground/80 hover:text-foreground transition-colors">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              style={{ WebkitAppRegion: 'no-drag' } as any}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pointer-events-none"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
             </button>
             {/* Open external */}
             <button onClick={() => { void openExternally(viewSrc); }} title="Mở trong trình duyệt"
-              className="w-8 h-8 rounded-lg bg-foreground/10 hover:bg-foreground/20 flex items-center justify-center text-foreground/80 hover:text-foreground transition-colors">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              style={{ WebkitAppRegion: 'no-drag' } as any}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pointer-events-none"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </button>
-            {/* Save */}
-            <button onClick={handleSave} disabled={saving} title="Lưu ảnh"
-              className="w-8 h-8 rounded-lg bg-foreground/10 hover:bg-foreground/20 flex items-center justify-center text-foreground/80 hover:text-foreground transition-colors disabled:opacity-40">
+            {/* Save / Download */}
+            <button onClick={handleSave} disabled={saving} title="Lưu ảnh về máy"
+              style={{ WebkitAppRegion: 'no-drag' } as any}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer disabled:opacity-40">
               {saving
                 ? <Spinner size={3} />
-                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pointer-events-none"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               }
             </button>
-            {/* Close */}
-            <button onClick={onClose} title="Đóng (Esc)"
-              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-red-600/70 flex items-center justify-center text-white/80 hover:text-white transition-colors">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>
+            <div className="w-px h-5 bg-white/20 mx-1" />
+            {/* Window control: Minimize */}
+            <button onClick={handleMinimizeWindow} title="Thu nhỏ cửa sổ ứng dụng"
+              style={{ WebkitAppRegion: 'no-drag' } as any}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="pointer-events-none">
+                <line x1="4" y1="12" x2="20" y2="12" />
+              </svg>
+            </button>
+            {/* Window control: Maximize / Restore */}
+            <button onClick={handleToggleMaximizeWindow} title={isWindowMaximized ? 'Khôi phục kích thước cửa sổ' : 'Phóng to cửa sổ'}
+              style={{ WebkitAppRegion: 'no-drag' } as any}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer">
+              {isWindowMaximized ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pointer-events-none">
+                  <rect x="7" y="3" width="14" height="14" rx="1.5" />
+                  <rect x="3" y="7" width="14" height="14" rx="1.5" />
+                </svg>
+              ) : (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pointer-events-none">
+                  <rect x="4" y="4" width="16" height="16" rx="1.5" />
+                </svg>
+              )}
+            </button>
+            {/* Close viewer */}
+            <button onClick={onClose} title="Đóng trình xem ảnh (Esc)"
+              style={{ WebkitAppRegion: 'no-drag' } as any}
+              className="w-8 h-8 rounded-lg bg-white/10 hover:bg-red-600/80 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" className="pointer-events-none"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>
             </button>
           </div>
         </div>
@@ -462,20 +588,22 @@ export default function MediaViewer({
         {/* Prev (older) / Next (newer) buttons - hidden at the real ends, no wrap-around */}
         {canPrev && (
           <button onClick={goPrev}
-            className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-colors shadow-lg"
+            style={{ WebkitAppRegion: 'no-drag' } as any}
+            className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-colors shadow-lg cursor-pointer"
             title="Ảnh cũ hơn (←)">
             {pendingStep?.dir === -1 && loadingOlder
               ? <Spinner size={4} />
-              : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>}
+              : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="pointer-events-none"><polyline points="15 18 9 12 15 6"/></svg>}
           </button>
         )}
         {canNext && (
           <button onClick={goNext}
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-colors shadow-lg"
+            style={{ WebkitAppRegion: 'no-drag' } as any}
+            className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/50 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-colors shadow-lg cursor-pointer"
             title="Ảnh mới hơn (→)">
             {pendingStep?.dir === 1 && loadingNewer
               ? <Spinner size={4} />
-              : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>}
+              : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="pointer-events-none"><polyline points="9 18 15 12 9 6"/></svg>}
           </button>
         )}
 
@@ -510,14 +638,14 @@ export default function MediaViewer({
         >
           {isImageLoading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none bg-black/20">
-              <div className="w-8 h-8 rounded-full border-2 border-foreground/20 border-t-white/80 animate-spin" />
+              <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/80 animate-spin" />
             </div>
           )}
           <TransformWrapper
             ref={transformRef}
             initialScale={1}
-            minScale={0.2}
-            maxScale={8}
+            minScale={0.15}
+            maxScale={20}
             centerOnInit={true}
             centerZoomedOut={true}
             limitToBounds={false}
@@ -528,7 +656,7 @@ export default function MediaViewer({
             }}
             wheel={{
               step: 0.15,
-              smoothStep: 0.004,
+              smoothStep: 0.003,
             }}
             panning={{
               velocityDisabled: false,
@@ -562,6 +690,7 @@ export default function MediaViewer({
                   maxWidth: '90vw',
                   maxHeight: '85vh',
                   objectFit: 'contain',
+                  display: 'block',
                 }}
                 loading="eager"
                 decoding="async"
@@ -621,6 +750,42 @@ export default function MediaViewer({
               <ViewerMenuItem
                 icon={
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                  </svg>
+                }
+                label="Vừa khít màn hình"
+                onClick={() => {
+                  closeContextMenu();
+                  handleFitToScreen();
+                }}
+              />
+              <ViewerMenuItem
+                icon={
+                  <span className="text-[11px] font-bold font-mono">1:1</span>
+                }
+                label="Kích thước thật (100%)"
+                onClick={() => {
+                  closeContextMenu();
+                  handleActualSize();
+                }}
+              />
+              <ViewerMenuItem
+                icon={
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                }
+                label="Lưu ảnh về máy..."
+                onClick={() => {
+                  closeContextMenu();
+                  void handleSave();
+                }}
+              />
+              <ViewerMenuItem
+                icon={
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="9" y="9" width="13" height="13" rx="2"/>
                     <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
                   </svg>
@@ -642,7 +807,7 @@ export default function MediaViewer({
         </div>
 
         {/* Bottom hint */}
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-foreground/30 text-xs pointer-events-none">
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-white/40 text-xs pointer-events-none">
           {zoomLevel <= 1.05 ? 'Cuộn để phóng to · Double-click để phóng 2x' : 'Double-click để reset · Kéo để di chuyển'}
           {hasMany && ' · ← → để chuyển ảnh'}
         </div>
