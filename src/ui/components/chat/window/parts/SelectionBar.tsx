@@ -5,6 +5,7 @@ import { CalendarIcon, CheckSquareIcon, FileTextIcon } from '@/components/common
 import { messageImageSource } from '@/lib/chat/erp/messageTaskImages';
 import { extractMsgText } from '@/lib/chat/messages/messageParser';
 import { getForwardBlockReason } from '@/lib/chat/forward/forwardSupport';
+import { getSaveItem, saveMessagesToFolder } from '../../messages/MessageContextMenu';
 import type { useQuickErpAccess } from '@/hooks/erp/useQuickErpAccess';
 import type { OpenThread } from '../hooks/useOpenThread';
 import type { MessageSelection } from '../hooks/useMessageSelection';
@@ -62,6 +63,16 @@ export function SelectionBar({ channelCap, erpAccess, msgs, selectedMsgIds, setE
             {kind === 'task' ? 'Tạo task' : kind === 'event' ? 'Thêm vào lịch' : 'Lưu ghi chú'}
           </button>
         ))}
+        {msgs.some(m => selectedMsgIds.has(m.msg_id) && getSaveItem(m)) && (
+          <button onClick={() => {
+            // Tải mọi ảnh / video / file trong các tin đã chọn vào một thư mục
+            void saveMessagesToFolder(msgs.filter(m => selectedMsgIds.has(m.msg_id)), showNotification);
+          }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted text-foreground/80 hover:text-foreground text-xs transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Tải về
+          </button>
+        )}
         {channelCap.supportsForward && (
           <button onClick={() => {
             const selectedMsgs = msgs.filter(m => selectedMsgIds.has(m.msg_id));

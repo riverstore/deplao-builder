@@ -166,6 +166,8 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 
 - Mọi ô tìm tên người/nhóm phải dùng `foldSearchText` (`src/shared/searchFold.ts`: bỏ dấu, xử lý cả đ/Đ, chữ thường), KHÔNG dùng `toLowerCase().includes()` hay NFD+regex `̀-ͯ` (đ/Đ không phân rã được; "thuy" không ra "Thuỷ"). Đã sửa: `getContactsFiltered`, `getCRMContacts` (chuyển tiếp tin nhắn + CRM), `GlobalSearchPanel`, `GroupModals`, `GroupPicker`, `GroupMembersTab`. Còn nhiều ô tìm khác chưa sửa (CRM campaigns, workflow, ...) — sửa khi người dùng báo.
 
+- Tải nhiều ảnh/file: IPC `file:saveMany` (`electron/ipc/fileIpc.ts`, chọn một thư mục, tên trùng thêm " (2)", chỉ giữ tên file) dùng chung `writeSourceToDest` với `file:saveAs`. Giao diện: `getSaveItem` / `saveMessagesToFolder` (`MessageContextMenu.tsx`); mục "Lưu cả album (N ảnh)" trong menu chuột phải (prop `albumMsgs` = `groupedFirstMsgs[msg_id]`) và nút "Tải về" ở thanh chọn nhiều tin của `ChatWindow.tsx`. Trước đây menu chỉ lưu đúng 1 ảnh được bấm và thanh chọn không có nút tải.
+
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
 - `listener.requestOldMessages` của zca-js **chỉ trả các tin phiên web chưa nhận**, không phải API lịch sử; lật trang bằng `lastId` (kể cả gửi `first:false`) Zalo không trả lời. Đã bỏ hướng này.

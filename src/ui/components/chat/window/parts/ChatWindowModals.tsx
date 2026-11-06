@@ -107,6 +107,7 @@ export function ChatWindowModals(props: ChatWindowModalsProps) {
           y={contextMenu.y}
           msg={contextMenu.msg}
           mediaMsg={contextMenu.mediaMsg}
+          albumMsgs={groupedFirstMsgs[contextMenu.msg?.msg_id]}
           isSent={contextMenu.isSent}
           isGroupAdmin={contextMenu.isGroupAdmin}
           recalled={contextMenu.recalled}
