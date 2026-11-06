@@ -176,6 +176,9 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 
 - Biệt danh vẫn hiện lại tên mặc định ở một số ca dù liên hệ đã có dòng trong DB (người dùng đã nhắn trước rồi mới tải biệt danh, làm nhiều lần): KHÔNG tìm ra nguyên nhân chắc chắn bằng đọc code; DB giữ biệt danh đúng (đã kiểm tra DB thật: 23/57 liên hệ nhắn 14 ngày có alias, không có cặp trùng mã). Đã thêm lớp bảo vệ trong `chatStore`: `setContacts` giữ `alias` đang có khi danh sách nạp lại có alias rỗng; `updateContact` bỏ khóa `alias: undefined` (trải ra sẽ xóa alias). Xóa biệt danh phải đi qua `updateContact` với `alias: ''`. Nếu còn tái diễn: hỏi hiện ở UI nào, chuyển hội thoại khác rồi quay lại có khôi phục không (store hay DB), tắt mở app có khôi phục không.
 
+- **Công cụ ghi vết giao diện → tab Nhật ký**: log của renderer mặc định KHÔNG vào tab Nhật ký / file xuất. `src/ui/lib/rendererLog.ts` (`rendererLog(level, msg)`, `shortStack()`) gửi qua IPC `app:rendererLog` (`preload.ts`, handler ở `utilIpc.ts`) vào `Logger` của main, dòng có tiền tố `[renderer]`. Đang dùng cho truy vết biệt danh: tìm `[alias-trace]` — `updateContact đổi alias` (kèm stack ai gọi), `setContacts: ... giữ lại` và `event:message contact=... aliasTruoc/aliasSau1.5s`. Gỡ bớt khi lỗi biệt danh đã được xác định nguyên nhân.
+- `npm run dev`: giao diện (`src/ui`) tự nạp lại, nhưng main process (`electron/`, `src/services`, `src/utils`) chỉ biên dịch lại, phải tắt (Ctrl+C) và chạy lại mới có hiệu lực. `npm run production` thất bại ở bước rebuild `better-sqlite3` (`EBUSY`) nếu còn app dev đang chạy.
+
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
 - `listener.requestOldMessages` của zca-js **chỉ trả các tin phiên web chưa nhận**, không phải API lịch sử; lật trang bằng `lastId` (kể cả gửi `first:false`) Zalo không trả lời. Đã bỏ hướng này.
