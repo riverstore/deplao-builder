@@ -174,6 +174,8 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 
 - **Biệt danh biến mất khi có tin đầu tiên** (người dùng "tận mắt" thấy sau khi tải biệt danh): `DatabaseService.setContactAlias` trước đây chỉ `UPDATE` nên liên hệ CHƯA có dòng trong `contacts` (bạn bè chưa nhắn) không được ghi biệt danh vào DB, trong khi giao diện vẫn hiện (đã đẩy vào store); tin đầu tiên tạo dòng mới không có alias, lần nạp lại từ DB mất biệt danh. Nay `setContactAlias` tạo dòng tối thiểu (`INSERT OR IGNORE`, display_name = contactId) khi alias không rỗng rồi `UPDATE`; các UPSERT khi nhận tin không đụng cột `alias` (đã thử trên bản sao DB thật).
 
+- Biệt danh vẫn hiện lại tên mặc định ở một số ca dù liên hệ đã có dòng trong DB (người dùng đã nhắn trước rồi mới tải biệt danh, làm nhiều lần): KHÔNG tìm ra nguyên nhân chắc chắn bằng đọc code; DB giữ biệt danh đúng (đã kiểm tra DB thật: 23/57 liên hệ nhắn 14 ngày có alias, không có cặp trùng mã). Đã thêm lớp bảo vệ trong `chatStore`: `setContacts` giữ `alias` đang có khi danh sách nạp lại có alias rỗng; `updateContact` bỏ khóa `alias: undefined` (trải ra sẽ xóa alias). Xóa biệt danh phải đi qua `updateContact` với `alias: ''`. Nếu còn tái diễn: hỏi hiện ở UI nào, chuyển hội thoại khác rồi quay lại có khôi phục không (store hay DB), tắt mở app có khôi phục không.
+
 ## 6. Kiến thức đã kiểm chứng (đỡ phải thử lại)
 
 - `listener.requestOldMessages` của zca-js **chỉ trả các tin phiên web chưa nhận**, không phải API lịch sử; lật trang bằng `lastId` (kể cả gửi `first:false`) Zalo không trả lời. Đã bỏ hướng này.
