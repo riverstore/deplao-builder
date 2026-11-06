@@ -1,10 +1,20 @@
 import { ipcMain, net } from 'electron';
 import { ensureGoogleFont } from '../../src/services/font/FontCacheService';
+import Logger from '../../src/utils/Logger';
 
 /**
  * Utility IPC handlers - fetch URLs from main process (no CORS restrictions)
  */
 export function registerUtilIpc(): void {
+  // Log do giao diện gửi lên (truy vết lỗi): vào Logger của main để hiện trong tab Nhật ký
+  ipcMain.removeAllListeners('app:rendererLog');
+  ipcMain.on('app:rendererLog', (_event, args: { level?: string; message?: string }) => {
+    const text = `[renderer] ${String(args?.message ?? '').slice(0, 1500)}`;
+    if (args?.level === 'error') Logger.error(text);
+    else if (args?.level === 'warn') Logger.warn(text);
+    else Logger.log(text);
+  });
+
   /**
    * Fetch a URL and return base64-encoded content + content type.
    * Used for loading Zalo CDN resources (bank card images, etc.) that
