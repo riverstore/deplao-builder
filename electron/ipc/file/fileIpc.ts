@@ -248,6 +248,12 @@ async function writeSourceToDest(params: SaveSourceParams, destPath: string): Pr
             }
         }
     }
+    try {
+        const now = new Date();
+        fs.utimesSync(destPath, now, now);
+    } catch (e: any) {
+        Logger.warn(`[fileIpc] touch utimes failed for ${destPath}: ${e?.message}`);
+    }
     return { success: true };
 }
 
