@@ -470,7 +470,9 @@ export function filterCampaignContacts<T extends CampaignContactRow>(
     if (filter === 'partial' && !partialFailureOf(contact)) return false;
     if (filter === 'waiting' && status !== 'pending' && status !== 'sending') return false;
     if (!needle) return true;
-    return foldSearchText(`${contact.display_name || ''} ${contact.contact_id || ''} ${contact.phone || ''}`).includes(needle);
+    const tokens = needle.split(/\s+/).filter(Boolean);
+    const target = foldSearchText(`${contact.display_name || ''} ${contact.contact_id || ''} ${contact.phone || ''}`);
+    return tokens.every(t => target.includes(t));
   });
 }
 

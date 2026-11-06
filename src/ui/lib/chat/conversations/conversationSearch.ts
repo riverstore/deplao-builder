@@ -57,17 +57,40 @@ export function buildSearchIndex<T>(items: readonly T[], fieldsOf: (item: T) => 
   return index;
 }
 
-/** Các dòng có khoá chứa từ khoá đã bỏ dấu (foldForSearch); từ khoá rỗng → không dòng nào. */
+/** Tách chuỗi đã bỏ dấu thành các từ tìm kiếm con. */
+export function searchTokensOf(needle: string): string[] {
+  if (!needle) return [];
+  return needle.trim().split(/\s+/).filter(Boolean);
+}
+
+/** Kiểm tra khoá có chứa tất cả các từ trong tokens hay không. */
+export function keyMatchesTokens(key: string, tokens: readonly string[]): boolean {
+  if (!tokens.length) return false;
+  for (let i = 0; i < tokens.length; i++) {
+    if (!key.includes(tokens[i])) return false;
+  }
+  return true;
+}
+
+/** Các dòng có khoá chứa tất cả các từ trong từ khoá (hỗ trợ từ không cạnh nhau: "an tha" khớp "An (THCS Vĩnh Thạnh)"). */
 export function filterSearchIndex<T>(index: readonly SearchIndexEntry<T>[], needle: string): T[] {
   if (!needle) return [];
+  const tokens = searchTokensOf(needle);
+  if (!tokens.length) return [];
   const out: T[] = [];
-  for (const entry of index) if (entry.key.includes(needle)) out.push(entry.item);
+  for (const entry of index) {
+    if (keyMatchesTokens(entry.key, tokens)) out.push(entry.item);
+  }
   return out;
 }
 
-/** Một dòng có khớp từ khoá (đã bỏ dấu) không — cho danh sách nhỏ (kết quả tìm phía Boss). */
+/** Một dòng có khớp từ khoá (đã bỏ dấu, hỗ trợ từ không cạnh nhau) không — cho danh sách nhỏ (kết quả tìm phía Boss). */
 export function matchesSearch(fields: ReadonlyArray<unknown>, needle: string): boolean {
-  return !!needle && searchKeyOf(fields).includes(needle);
+  if (!needle) return false;
+  const tokens = searchTokensOf(needle);
+  if (!tokens.length) return false;
+  const key = searchKeyOf(fields);
+  return keyMatchesTokens(key, tokens);
 }
 
 /** Trường dùng để tìm của một hội thoại / liên hệ. */

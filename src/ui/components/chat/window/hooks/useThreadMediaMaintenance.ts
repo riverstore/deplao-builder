@@ -7,7 +7,7 @@ import DataAccessor from '@/lib/data/DataAccessor';
 import ipc from '@/lib/ipc';
 import { toLocalMediaUrl } from '@/lib/media/localMedia';
 import { useEmployeeStore } from '@/store/employee/employeeStore';
-import { toZaloJpgUrl } from '../../../../../utils/zalo/zaloImageUrl';
+import { extractZaloImageUrl, toZaloJpgUrl } from '../../../../../utils/zalo/zaloImageUrl';
 
 export function useThreadMediaMaintenance(deps: {
   threadReady: boolean;
@@ -41,12 +41,7 @@ export function useThreadMediaMaintenance(deps: {
         if (!imageExts.includes(ext)) continue;
 
         // Extract remoteUrl for repair
-        let remoteUrl = '';
-        try {
-          const parsed = JSON.parse(msg.content || '{}');
-          const params = typeof parsed.params === 'string' ? JSON.parse(parsed.params) : (parsed.params || {});
-          remoteUrl = toZaloJpgUrl(params.hd || params.rawUrl || parsed.href || parsed.thumb || '');
-        } catch {}
+        const remoteUrl = extractZaloImageUrl(msg);
 
         items.push({
           zaloId: activeAccountId,

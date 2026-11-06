@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { foldSearchText } from '../../../../shared/chat/searchFold';
+import { foldSearchText, getSearchTokens, matchesSearchTokens } from '../../../../shared/chat/searchFold';
 import DataAccessor, { isReadFailure } from '@/lib/data/DataAccessor';
 import ipc, { buildZaloAuth } from '@/lib/ipc';
 import { useAccountStore } from '@/store/accounts/accountStore';
@@ -877,15 +877,15 @@ function ZaloGroupMembersTab() {
   }, []);
 
   // ── Filtered lists ────────────────────────────────────────────────────────
+  const groupTokens = getSearchTokens(searchGroup);
+  const memberTokens = getSearchTokens(searchMember);
   const filteredGroups = groups.filter(g =>
-    !searchGroup.trim() ||
-    foldSearchText(g.display_name).includes(foldSearchText(searchGroup)) ||
-    g.contact_id.includes(searchGroup)
+    groupTokens.length === 0 ||
+    matchesSearchTokens([g.display_name, g.contact_id], groupTokens)
   );
   const filteredMembers = members.filter(m =>
-    !searchMember.trim() ||
-    foldSearchText(m.display_name).includes(foldSearchText(searchMember)) ||
-    m.member_id.includes(searchMember)
+    memberTokens.length === 0 ||
+    matchesSearchTokens([m.display_name, m.member_id], memberTokens)
   );
 
   const allFilteredSelected = filteredMembers.length > 0 &&
@@ -2257,10 +2257,14 @@ function TelegramGroupMembersTab({ channel }: { channel: 'telegram_user' | 'tele
     showCampaignPicker && campaignsLoadFailed ? loadPickerCampaigns() : Promise.resolve(false),
   ]));
 
-  const visibleGroups = groups.filter(g => foldSearchText(g.display_name || g.contact_id).includes(foldSearchText(query)));
+  const queryTokens = getSearchTokens(query);
+  const visibleGroups = groups.filter(g =>
+    queryTokens.length === 0 || matchesSearchTokens([g.display_name, g.contact_id], queryTokens)
+  );
+  const memberQTokens = getSearchTokens(memberQuery);
   const visibleMembers = members.filter(member => {
-    const text = `${member.firstName || ''} ${member.lastName || ''} ${member.username || ''} ${member.id || ''}`.toLowerCase();
-    return text.includes(memberQuery.toLowerCase());
+    if (memberQTokens.length === 0) return true;
+    return matchesSearchTokens([member.firstName, member.lastName, member.username, member.id], memberQTokens);
   });
   const allVisibleSelected = visibleMembers.length > 0 && visibleMembers.every(member => selectedMemberIds.has(member.id));
   const selectedGroup = groups.find(g => g.contact_id === selectedId);

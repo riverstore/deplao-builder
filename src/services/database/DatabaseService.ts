@@ -4842,11 +4842,16 @@ class DatabaseService {
         if (opts?.search) {
             // SQLite LOWER() chỉ xử lý ASCII và LIKE không bỏ dấu → "nguyen" không ra "Nguyễn", "Đ"/"đ" lệch nhau.
             // Tên và biệt danh so sánh qua deplao_fold (bỏ dấu + chữ thường); mã / số điện thoại so theo chữ gõ.
+            // Hỗ trợ tìm kiếm các từ không cạnh nhau: "an tha" khớp "An (THCS Vĩnh Thạnh)".
             this.ensureFoldFunction();
-            const folded = `%${escapeLikePattern(foldSearchText(opts.search))}%`;
-            const raw = `%${escapeLikePattern(String(opts.search).trim())}%`;
-            conditions.push(`(deplao_fold(display_name) LIKE ? ESCAPE '\\' OR deplao_fold(alias) LIKE ? ESCAPE '\\' OR contact_id LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\')`);
-            params.push(folded, folded, raw, raw);
+            const rawTokens = String(opts.search).trim().split(/\s+/).filter(Boolean);
+            const foldedTokens = foldSearchText(opts.search).split(/\s+/).filter(Boolean);
+            for (let i = 0; i < foldedTokens.length; i++) {
+                const folded = `%${escapeLikePattern(foldedTokens[i])}%`;
+                const raw = `%${escapeLikePattern(rawTokens[i] || foldedTokens[i])}%`;
+                conditions.push(`(deplao_fold(display_name) LIKE ? ESCAPE '\\' OR deplao_fold(alias) LIKE ? ESCAPE '\\' OR contact_id LIKE ? ESCAPE '\\' OR phone LIKE ? ESCAPE '\\')`);
+                params.push(folded, folded, raw, raw);
+            }
         }
         if (opts?.othersOnly) {
             conditions.push('is_in_others = 1');
@@ -6492,7 +6497,7 @@ class DatabaseService {
         if (!contentRaw || typeof contentRaw !== 'object') return '';
         let p: any = contentRaw.params;
         if (typeof p === 'string') { try { p = JSON.parse(p); } catch { p = null; } }
-        return (p?.hd || p?.rawUrl) || contentRaw.normalUrl || contentRaw.hdUrl || contentRaw.hd || contentRaw.href || contentRaw.thumb || contentRaw.url || '';
+        return (p?.hd || p?.rawUrl || p?.normalUrl || p?.url) || contentRaw.normalUrl || contentRaw.hdUrl || contentRaw.hd || contentRaw.href || contentRaw.thumb || contentRaw.url || '';
     }
 
     /**
@@ -6787,10 +6792,13 @@ class DatabaseService {
         const params: unknown[] = [ownerZaloId, groupId];
         if (options.namedOnly) conditions.push(`TRIM(COALESCE(gm.display_name, '')) <> ''`, `gm.display_name <> gm.member_id`);
         const query = foldSearchText(options.query);
-        if (query) {
-            const like = `%${escapeLikePattern(query)}%`;
-            conditions.push(`(deplao_fold(gm.display_name) LIKE ? ESCAPE '\\' OR deplao_fold(${username}) LIKE ? ESCAPE '\\' OR gm.member_id LIKE ? ESCAPE '\\')`);
-            params.push(like, like, like);
+        const tokens = query.split(/\s+/).filter(Boolean);
+        if (tokens.length > 0) {
+            for (const t of tokens) {
+                const like = `%${escapeLikePattern(t)}%`;
+                conditions.push(`(deplao_fold(gm.display_name) LIKE ? ESCAPE '\\' OR deplao_fold(${username}) LIKE ? ESCAPE '\\' OR gm.member_id LIKE ? ESCAPE '\\')`);
+                params.push(like, like, like);
+            }
         }
         const where = conditions.join(' AND ');
         const columns = `gm.member_id, gm.display_name, gm.avatar, gm.role, ${username} AS username, gm.updated_at`;

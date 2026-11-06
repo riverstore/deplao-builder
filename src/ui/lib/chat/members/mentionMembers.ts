@@ -6,7 +6,7 @@
  * sách chỉ có 50 người đầu của cache nhóm.
  */
 import type { GroupMember } from '@/store/app/appStore';
-import { foldSearchText } from '../../../../shared/chat/searchFold';
+import { foldSearchText, getSearchTokens, matchesSearchTokens } from '../../../../shared/chat/searchFold';
 
 export const MENTION_PAGE_SIZE = 50;
 /** Lấy lại ~200 thành viên gần đây của nhóm Telegram qua API sau chừng này (người vào / rời nhóm dần dần). */
@@ -91,14 +91,11 @@ export function isNamedMember(member: Pick<GroupMember, 'userId' | 'displayName'
  * theo tên / @username / id, không phân biệt dấu.
  */
 export function filterCachedMentionMembers(members: GroupMember[] | undefined, query: string, limit = MENTION_PAGE_SIZE * 4): GroupMember[] {
-  const needle = foldSearchText(query);
+  const tokens = getSearchTokens(query);
   const result: GroupMember[] = [];
   for (const member of members || []) {
     if (!member?.userId || !isNamedMember(member)) continue;
-    if (needle
-      && !foldSearchText(member.displayName).includes(needle)
-      && !foldSearchText(member.username || '').includes(needle)
-      && !String(member.userId).includes(needle)) continue;
+    if (tokens.length > 0 && !matchesSearchTokens([member.displayName, member.username, member.userId], tokens)) continue;
     result.push(member);
     if (result.length >= limit) break;
   }

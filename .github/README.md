@@ -14,12 +14,18 @@
 - Tự tải các tin bị lỡ khi mở lại app và sau khi kết nối lại.
 - Khi tài khoản đang mở ở nơi khác (Zalo Web) thì không tranh phiên, báo rõ để người dùng đóng Zalo Web.
 
-**Danh sách hội thoại**
+**Danh sách hội thoại & Tìm kiếm**
 - Tab **Đã ghim** (ghim trên Zalo + ghim trong app).
 - Tab **Chưa đọc** tự thêm hội thoại mới có tin chưa đọc.
-- Tìm người / nhóm **không phân biệt dấu, hoa thường**, tìm cả biệt danh lẫn tên gốc, và tìm toàn cục thấy cả nhóm / bạn bè ngoài danh sách đang tải.
+- **Tìm kiếm đa từ không cạnh nhau** (multi-token search): không phân biệt dấu và hoa thường, tìm cả biệt danh lẫn tên gốc. Ví dụ: gõ `"an tha"` sẽ tìm thấy ngay `"An (THCS Vĩnh Thạnh)"`, highlight đồng thời các từ khóa con; áp dụng đồng bộ cho danh sách hội thoại, tìm kiếm toàn cục, chọn thành viên nhóm và nhắc tên (@mention).
 - Rê chuột vào biểu cảm của tin nhắn để xem tên người đã thả; biệt danh được hiển thị đúng ngay cả với người ngoài danh sách hội thoại đang tải.
 - Tin file hiện icon SVG theo loại file (đúng màu Word / Excel / PowerPoint / PDF), tên file dài xuống dòng và có tooltip; nút **Lưu về máy…** cho file đính kèm; **Lưu cả album** (menu chuột phải) và nút **Tải về** khi chọn nhiều tin để lưu nhiều ảnh / file vào một thư mục.
+- Khắc phục triệt để lỗi không tải được ảnh album Zalo: trích xuất URL ảnh toàn diện, tự động đổi JXL sang JPG và sửa lỗi cookie khiến máy chủ CDN từ chối (403).
+
+**Hội thoại ẩn Zalo (mã PIN)**
+- Gõ 4 số PIN vào ô tìm kiếm để mở danh sách hội thoại ẩn; tự động xóa PIN khỏi màn hình và đóng bảng tìm kiếm chung khi mở khóa thành công.
+- Kính lúp ô tìm kiếm chuẩn hóa bảo mật: bình thường hiển thị màu xám trung tính (không làm lộ việc có hội thoại ẩn); **chỉ chuyển màu đỏ và nhấp nháy chấm đỏ khi có tin nhắn mới chưa đọc** từ hội thoại ẩn; khi đang xem hội thoại ẩn thì kính lúp có nền đỏ, bấm vào để khóa lại ngay.
+- Bảo toàn cờ ẩn trong cơ sở dữ liệu máy tính, không bị mất cờ khi Zalo API tạm thời lỗi hoặc chưa đồng bộ.
 
 **Giao diện** (lấy ý tưởng từ [ZaDark](https://github.com/ncdai/zadark), tự viết lại, không chép mã)
 - Giao diện Sáng / Tối / **Theo hệ thống**; bảng màu Xanh dương, Xanh lá, Tím, Đen tuyền (AMOLED), ZaDark.
@@ -32,8 +38,11 @@
 
 ## Nhật ký thay đổi (so với bản gốc)
 
-Dựa trên Deplao v26.10.2.
+Dựa trên Deplao v26.10.4.
 
+- **Hội thoại ẩn Zalo (mã PIN)**: Sửa lỗi gõ PIN không mở được hội thoại ẩn; kính lúp ô tìm kiếm chuẩn hóa bảo mật theo Zalo (chỉ đỏ khi có tin mới chưa đọc từ hội thoại ẩn, bình thường xám); bảo toàn cờ ẩn trong DB máy tính.
+- **Tìm kiếm đa từ không cạnh nhau**: Gõ các từ cách nhau không dấu (như `"an tha"`) tìm thấy ngay tên đầy đủ (như `"An (THCS Vĩnh Thạnh)"`), highlight đồng thời các từ tìm được trên toàn bộ các bộ lọc, chọn thành viên nhóm và nhắc tên.
+- **Sửa lỗi ảnh album Zalo**: Trích xuất URL ảnh đa tầng, chuyển đổi JXL sang JPG, sửa lỗi so sánh tài khoản khiến cookie mất làm CDN trả 403.
 - **Cài đặt giao diện lưu vào DB**: không còn mất khi đổi giữa chạy thử (`npm run dev`) và bản build.
 - **Tải nhiều ảnh / file cùng lúc** (Lưu cả album, Tải về khi chọn nhiều tin) vào một thư mục; **Lưu về máy…** cho file đính kèm (bong bóng chat và panel đính kèm); icon file lớn hơn, đặt trên nền trắng ở giao diện Tối, tên file dài xuống dòng có tooltip.
 - **Tùy chỉnh nhanh** gộp nút Sáng/Tối cũ: giao diện, bảng màu, phông chữ, cỡ chữ tin nhắn, riêng tư.

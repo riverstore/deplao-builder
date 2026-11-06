@@ -109,8 +109,11 @@ function applyState(zaloId: string, res: any, now: number): HiddenState {
   const state: HiddenState = { pinHash: parsed.pinHash, threads, readAt: now };
   states.set(zaloId, state);
   lastRefreshAt.set(zaloId, now);
-  const changed = EventBroadcaster.withBossDb((db) => db.replaceContactHidden(zaloId, new Set(threads.keys())));
-  for (const item of changed) emitHidden(zaloId, item.contactId, item.hidden);
+  // Chỉ thay thế cả tập trong DB khi Zalo có trả về pinHash hợp lệ, tránh xóa nhầm cờ ẩn khi API Zalo lỗi/chưa sync
+  if (parsed.pinHash) {
+    const changed = EventBroadcaster.withBossDb((db) => db.replaceContactHidden(zaloId, new Set(threads.keys())));
+    for (const item of changed) emitHidden(zaloId, item.contactId, item.hidden);
+  }
   return state;
 }
 
@@ -188,7 +191,13 @@ export async function unlockZaloHidden(zaloId: string, pin: string, api: ZaloHid
     return { ok: false, reason: 'wrong' };
   }
   attempts.delete(zaloId);
-  return { ok: true, threadIds: Array.from(state.threads.keys()) };
+  // Gộp danh sách thread từ state Zalo + các hội thoại có cờ zalo_hidden=1 trong DB Deplao
+  const dbHidden = EventBroadcaster.withBossDb((db) => {
+    const rows = db.query<{ contact_id: string }>('SELECT contact_id FROM contacts WHERE owner_zalo_id = ? AND zalo_hidden = 1', [zaloId]);
+    return rows.map((r) => r.contact_id);
+  }) || [];
+  const allThreads = Array.from(new Set([...state.threads.keys(), ...dbHidden]));
+  return { ok: true, threadIds: allThreads };
 }
 
 /** Ẩn / bỏ ẩn một hội thoại trên Zalo rồi ghi DB + báo giao diện. Ẩn khi chưa có PIN → lỗi (giao diện đặt PIN trước). */

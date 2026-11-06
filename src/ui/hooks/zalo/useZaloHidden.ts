@@ -43,7 +43,7 @@ export async function tryUnlockHiddenFromSearch(text: string, accountIds: Readon
   for (const zaloId of accountIds) {
     if (!zaloId) continue;
     const state = useAppStore.getState();
-    if (state.hiddenUnlocked[zaloId] || !(state.hiddenConversations[zaloId]?.size)) continue;
+    if (state.hiddenUnlocked[zaloId]) continue;
     const auth = zaloAuthFor(zaloId);
     if (!auth) continue;
     try {

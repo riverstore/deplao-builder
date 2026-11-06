@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { foldSearchText } from '../../../../shared/chat/searchFold';
+import { foldSearchText, getSearchTokens, matchesSearchTokens } from '../../../../shared/chat/searchFold';
 import { useAccountStore } from '@/store/accounts/accountStore';
 import { useAppStore } from '@/store/app/appStore';
 import ipc, { buildZaloAuth } from '@/lib/ipc';
@@ -160,8 +160,9 @@ const GroupPicker: React.FC<GroupPickerProps> = ({
     onChange('');
   };
 
-  const filteredGroups = searchTerm.trim()
-    ? groups.filter(g => foldSearchText(g.name).includes(foldSearchText(searchTerm)))
+  const searchTokens = getSearchTokens(searchTerm);
+  const filteredGroups = searchTokens.length > 0
+    ? groups.filter(g => matchesSearchTokens(g.name, searchTokens))
     : groups;
 
   const isTemplateValue = value?.startsWith('{{');

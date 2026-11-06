@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { foldSearchText } from '../../../../shared/chat/searchFold';
+import { foldSearchText, getSearchTokens, matchesSearchTokens } from '../../../../shared/chat/searchFold';
 import { useShallow } from 'zustand/react/shallow';
 import { useAccountStore } from '@/store/accounts/accountStore';
 import { useAppStore, LabelData } from '@/store/app/appStore';
@@ -411,8 +411,8 @@ export function CreateGroupModal({ onClose, onCreated, preSelected, accountId }:
   };
 
   const matchFilter = (name: string, phone: string, id: string) => {
-    const q = search.toLowerCase();
-    if (q && !foldSearchText(name).includes(foldSearchText(search)) && !phone.includes(q) && !id.includes(q)) return false;
+    const tokens = getSearchTokens(search);
+    if (tokens.length > 0 && !matchesSearchTokens([name, phone, id], tokens)) return false;
     if (selectedLabelKeys.size > 0) {
       let inAny = false;
       for (const key of selectedLabelKeys) {
@@ -741,8 +741,8 @@ export function SendCardModal({ threadId, threadType, onClose }: {
   const auth = acc ? buildZaloAuth(acc, activeAccountId) : null;
 
   const matchFilter = (name: string, phone: string, id: string) => {
-    const q = search.toLowerCase();
-    if (q && !foldSearchText(name).includes(foldSearchText(search)) && !phone.includes(q) && !id.includes(q)) return false;
+    const tokens = getSearchTokens(search);
+    if (tokens.length > 0 && !matchesSearchTokens([name, phone, id], tokens)) return false;
     if (selectedLabelKeys.size > 0) {
       let inAny = false;
       for (const key of selectedLabelKeys) {
@@ -963,10 +963,9 @@ export function AddMemberToGroupModal({ groupId, groupName, existingMemberIds = 
 
   const filteredFriends = candidates.filter(f => {
     if (existingMemberIds.includes(f.userId)) return false;
-    const q = search.toLowerCase();
-    if (!q) return true;
-    return foldSearchText(f.displayName || f.zaloName || '').includes(foldSearchText(search)) ||
-      (f.phoneNumber || '').includes(q) || (f.userId || '').includes(q);
+    const tokens = getSearchTokens(search);
+    if (tokens.length === 0) return true;
+    return matchesSearchTokens([f.displayName, f.zaloName, f.phoneNumber, f.userId], tokens);
   });
 
   const byLetter: Record<string, any[]> = {};

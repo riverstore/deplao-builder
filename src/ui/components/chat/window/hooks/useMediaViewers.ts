@@ -10,7 +10,7 @@ import { isMediaType, isVideoType } from '@/lib/chat/messages/messageTypeUtils';
 import { getLocalMediaPath } from '@/lib/media/mediaResolver';
 import { toLocalMediaUrl } from '@/lib/media/localMedia';
 import { setInlineAutoplaySuspended } from '@/lib/media/inlineAutoplay';
-import { toZaloJpgUrl } from '../../../../../utils/zalo/zaloImageUrl';
+import { extractZaloImageUrl, toZaloJpgUrl } from '../../../../../utils/zalo/zaloImageUrl';
 
 export function useMediaViewers(msgsRef: React.MutableRefObject<any[]>, activeThreadId: string | null) {
   // Video player modal
@@ -49,11 +49,7 @@ export function useMediaViewers(msgsRef: React.MutableRefObject<any[]>, activeTh
         localUrl = toLocalMediaUrl(lf);
       }
     } catch {}
-    try {
-      const p = JSON.parse(msg.content || '{}');
-      const params = typeof p.params === 'string' ? JSON.parse(p.params || '{}') : (p.params || {});
-      remoteUrl = toZaloJpgUrl(params.hd || params.rawUrl || p.href || p.thumb || '');
-    } catch {}
+    remoteUrl = extractZaloImageUrl(msg);
     if (!remoteUrl && !localUrl) return null;
     const defaultName = localPath
       ? localPath.replace(/.*[/\\]/, '')

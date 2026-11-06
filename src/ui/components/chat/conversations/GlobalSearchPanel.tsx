@@ -14,6 +14,7 @@ import { ChatIcon, CloseIcon} from '@/components/common/icons';
 import { lookupZaloUserByPhone } from '@/lib/chat/zalo/zaloPhoneLookup';
 import { useHiddenLockedPredicate } from '@/hooks/zalo/useZaloHidden';
 import PeerInitials from '@/components/common/avatars/PeerInitials';
+import { foldSearchText } from '../../../../shared/chat/searchFold';
 import {
   buildSearchIndex, contactSearchFields, filterSearchIndex, foldForSearch, friendSearchFields, matchesSearch,
   MESSAGE_SEARCH_DEBOUNCE_MS, MESSAGE_SEARCH_MIN_LENGTH,
@@ -43,26 +44,65 @@ function isTelegramUsername(s: string): boolean {
   return /^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(username);
 }
 
-// ─── Highlight matching text ──────────────────────────────────────────────────
+// ─── Highlight matching text (hỗ trợ nhiều từ không cạnh nhau và không phân biệt dấu) ───
 export function highlightText(text: string, query: string): React.ReactNode {
-  if (!query.trim() || !text) return <>{text}</>;
-  const nText = normalizeStr(text);
-  const nQuery = normalizeStr(query);
+  if (!query?.trim() || !text) return <>{text}</>;
+  const tokens = foldSearchText(query).split(/\s+/).filter(Boolean);
+  if (!tokens.length) return <>{text}</>;
+
+  // Tạo chuỗi folded có độ dài ký tự 1-1 với text gốc
+  const chars = Array.from(text);
+  const folded = chars.map(c => foldSearchText(c) || ' ').join('');
+
+  // Tìm tất cả các khoảng [start, end) khớp với bất kỳ từ nào trong tokens
+  const ranges: Array<[number, number]> = [];
+  for (const token of tokens) {
+    if (!token) continue;
+    let idx = folded.indexOf(token, 0);
+    while (idx !== -1) {
+      ranges.push([idx, idx + token.length]);
+      idx = folded.indexOf(token, idx + 1);
+    }
+  }
+
+  if (!ranges.length) return <>{text}</>;
+
+  // Sắp xếp và gộp các khoảng chồng lấn
+  ranges.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const merged: Array<[number, number]> = [];
+  for (const [start, end] of ranges) {
+    if (!merged.length) {
+      merged.push([start, end]);
+    } else {
+      const prev = merged[merged.length - 1];
+      if (start <= prev[1]) {
+        prev[1] = Math.max(prev[1], end);
+      } else {
+        merged.push([start, end]);
+      }
+    }
+  }
+
+  // Cắt text theo các khoảng merged
   const parts: React.ReactNode[] = [];
-  let last = 0;
-  let i = nText.indexOf(nQuery, 0);
-  while (i !== -1) {
-    if (i > last) parts.push(<span key={`t${i}`}>{text.slice(last, i)}</span>);
+  let cur = 0;
+  for (let i = 0; i < merged.length; i++) {
+    const [start, end] = merged[i];
+    if (start > cur) {
+      parts.push(<span key={`txt_${cur}`}>{text.slice(cur, start)}</span>);
+    }
     parts.push(
-      <span key={`h${i}`} className="text-blue-400 font-semibold">
-        {text.slice(i, i + query.length)}
+      <span key={`hl_${start}`} className="text-blue-400 font-semibold">
+        {text.slice(start, end)}
       </span>
     );
-    last = i + query.length;
-    i = nText.indexOf(nQuery, last);
+    cur = end;
   }
-  if (last < text.length) parts.push(<span key={'e' + last}>{text.slice(last)}</span>);
-  return parts.length ? <>{parts}</> : <>{text}</>;
+  if (cur < text.length) {
+    parts.push(<span key={`txt_${cur}`}>{text.slice(cur)}</span>);
+  }
+
+  return <>{parts}</>;
 }
 
 // ─── Parse message preview ────────────────────────────────────────────────────
