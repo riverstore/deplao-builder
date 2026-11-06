@@ -7,6 +7,7 @@ import Logger from '../../../../utils/Logger';
 import { useShallow } from 'zustand/react/shallow';
 import {useAccountStore} from '@/store/accounts/accountStore';
 import {useAppStore} from '@/store/app/appStore';
+import { isPrivacyEnabled } from '@/store/privacyStore';
 import {useEmployeeStore} from '@/store/employee/employeeStore';
 import ipc, { buildZaloAuth } from '@/lib/ipc'
 import { openTelegramMiniApp } from '@/lib/chat/telegram/telegramMiniApp';
@@ -364,6 +365,8 @@ export default function MessageInput() {
   const sendTypingEvent = useCallback(() => {
     // Phần bình luận: "đang gõ" của nhóm sẽ hiện ở dòng chính của nhóm thảo luận → không gửi
     if (!activeAccountId || !activeThreadId || commentMode) return;
+    // Tùy chọn riêng tư: không cho người nhận thấy "đang soạn tin"
+    if (isPrivacyEnabled('hideTyping')) return;
     const now = Date.now();
     // Throttle: chỉ gửi tối đa 1 lần / 4 giây
     if (now - lastTypingSentRef.current < 4000) return;

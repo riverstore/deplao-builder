@@ -3233,9 +3233,9 @@ export default function ConversationList() {
               </div>
             )}
             <div
-              className={`group/conv relative w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted transition-colors cursor-pointer ${threadLocalLabelsArr.length > 0 ? 'min-h-[72px]' : 'max-h-[80px] min-h-[80px]'} ${activeThreadId === contact.contact_id && activeAccountId === contact.owner_zalo_id ? 'bg-selected hover:bg-selected' : ''}`}
+              className={`privacy-reveal group/conv relative w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted transition-colors cursor-pointer ${threadLocalLabelsArr.length > 0 ? 'min-h-[72px]' : 'max-h-[80px] min-h-[80px]'} ${activeThreadId === contact.contact_id && activeAccountId === contact.owner_zalo_id ? 'bg-selected hover:bg-selected' : ''}`}
               onClick={() => { if (mergedInboxMode) { handleMergedClick(contact); } else { handleSelect(contact.contact_id, threadType, contact.owner_zalo_id || activeAccountId); setFilterDropdownOpen(false); } }}>
-              <div className="relative flex-shrink-0">
+              <div className="privacy-avatar relative flex-shrink-0">
                 {isMyDocs && showsMyDocumentsIcon(contactAccount, contact.avatar_url, failedAvatars.has(contact.contact_id)) ? (
                   <MyDocumentsIcon />
                 ) : threadType === 1 ? (
@@ -3293,7 +3293,7 @@ export default function ConversationList() {
                     {isMyDocs && <span title="My Documents luôn ở đầu (như Zalo)"><PinIcon className="w-4 h-4" /></span>}
                     {!isMyDocs && isLocalPinned && <span title="Ghim trong app">📍</span>}
                     {!isMyDocs && isPinned && <span title="Ghim Zalo"><PinIcon className="w-4 h-4" /></span>}
-                    <span className="truncate">{isMyDocs ? myDocumentsTitle(contact, contactAccount) : (contact.alias || contact.display_name || contact.contact_id)}</span>
+                    <span className="privacy-name truncate">{isMyDocs ? myDocumentsTitle(contact, contactAccount) : (contact.alias || contact.display_name || contact.contact_id)}</span>
                     {membershipNotice && (
                       <span
                         className="flex-shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium leading-none bg-amber-500/15 text-amber-400"
@@ -3333,7 +3333,7 @@ export default function ConversationList() {
                         }
                       </span>
                     )}
-                    <span className="truncate">
+                    <span className="privacy-last-message truncate">
                       {(() => {
                         const draftKey = `${contactZaloId}_${contact.contact_id}`;
                         const draftText = contact.contact_id !== activeThreadId ? drafts[draftKey] : undefined;

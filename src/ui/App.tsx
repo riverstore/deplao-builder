@@ -33,6 +33,7 @@ import AccountSwitcherOverlay from './components/common/accounts/AccountSwitcher
 import TelegramIncomingCall from './components/chat/telegram/quick/TelegramIncomingCall';
 import { UpdateNotification } from './components/common/notifications/UpdateNotification';
 import { useAppStore } from './store/app/appStore';
+import { usePrivacyStore } from './store/privacyStore';
 import { useAccountStore } from './store/accounts/accountStore';
 import { useChatStore } from './store/chat/chatStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -383,6 +384,21 @@ export default function App() {
     });
     return () => { cancelled = true; };
   }, [fontFamily]);
+
+  // Chống nhìn trộm: bật/tắt thuộc tính trên <html>, CSS trong index.css làm mờ
+  const privacyBlur = usePrivacyStore(useShallow(s => ({
+    blurLastMessage: s.blurLastMessage, blurNames: s.blurNames, blurAvatars: s.blurAvatars, blurMessages: s.blurMessages,
+  })));
+  useEffect(() => {
+    const ds = document.documentElement.dataset;
+    const apply = (attr: 'blurLastMessage' | 'blurNames' | 'blurAvatars' | 'blurMessages', on: boolean) => {
+      if (on) ds[attr] = ''; else delete ds[attr];
+    };
+    apply('blurLastMessage', privacyBlur.blurLastMessage);
+    apply('blurNames', privacyBlur.blurNames);
+    apply('blurAvatars', privacyBlur.blurAvatars);
+    apply('blurMessages', privacyBlur.blurMessages);
+  }, [privacyBlur.blurLastMessage, privacyBlur.blurNames, privacyBlur.blurAvatars, privacyBlur.blurMessages]);
 
   // Cỡ chữ riêng cho nội dung tin nhắn (class chat-msg-text trong bong bóng chat)
   useEffect(() => {
