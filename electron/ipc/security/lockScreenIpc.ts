@@ -38,10 +38,12 @@ export function registerLockScreenIpc() {
             const biometricAvailable = checkBiometricAvailable();
             const autoLockVal = parseInt(db().getSetting('lock_screen_auto_lock') || '0', 10);
             const autoLockMinutes = isNaN(autoLockVal) ? 0 : autoLockVal;
+            const codeLenVal = parseInt(db().getSetting('lock_screen_code_length') || '4', 10);
+            const codeLength = isNaN(codeLenVal) || codeLenVal < 4 ? 4 : Math.min(codeLenVal, 8);
             const now = Date.now();
             const isCoolingDown = now < cooldownUntil;
             const remainingCooldown = isCoolingDown ? Math.ceil((cooldownUntil - now) / 1000) : 0;
-            return { success: true, enabled, autoLockMinutes, biometricEnabled, biometricAvailable, failedAttempts, isCoolingDown, remainingCooldown };
+            return { success: true, enabled, autoLockMinutes, codeLength, biometricEnabled, biometricAvailable, failedAttempts, isCoolingDown, remainingCooldown };
         } catch (e: any) {
             return { success: false, error: e.message };
         }
@@ -56,6 +58,7 @@ export function registerLockScreenIpc() {
             const hash = await bcrypt.hash(password, BCRYPT_ROUNDS);
             db().setSetting('lock_screen_hash', hash);
             db().setSetting('lock_screen_enabled', '1');
+            db().setSetting('lock_screen_code_length', String(password.length));
 
             // Generate and encrypt recovery key
             const recoveryKey = generateRecoveryKey();
@@ -165,6 +168,7 @@ export function registerLockScreenIpc() {
 
             const newHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
             db().setSetting('lock_screen_hash', newHash);
+            db().setSetting('lock_screen_code_length', String(newPassword.length));
             Logger.log('[LockScreen] Password changed');
             return { success: true };
         } catch (e: any) {
@@ -196,6 +200,7 @@ export function registerLockScreenIpc() {
 
             const newHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
             db().setSetting('lock_screen_hash', newHash);
+            db().setSetting('lock_screen_code_length', String(newPassword.length));
             failedAttempts = 0;
             cooldownUntil = 0;
             Logger.log('[LockScreen] Password reset via recovery key');
