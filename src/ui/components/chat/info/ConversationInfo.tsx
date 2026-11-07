@@ -660,13 +660,13 @@ function UserConversationInfo() {
       {/* Avatar + name */}
       <div className="flex flex-col items-center py-6 px-4 border-b border-border">
         {savedMessages ? (
-          <div className="w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-sky-400 to-blue-600 mb-3" style={{ color: '#fff' }}>
-            <CloudIcon className="w-8 h-8" />
+          <div className="w-20 h-20 rounded-full flex items-center justify-center bg-gradient-to-br from-sky-400 to-blue-600 mb-3 shadow-sm" style={{ color: '#fff' }}>
+            <CloudIcon className="w-10 h-10" />
           </div>
         ) : avatarUrl ? (
-          <img src={toLocalMediaUrl(avatarUrl)} alt={displayName} className="w-16 h-16 rounded-full object-cover mb-3" />
+          <img src={toLocalMediaUrl(avatarUrl)} alt={displayName} className="w-20 h-20 rounded-full object-cover mb-3 border-2 border-border/60 shadow-sm" />
         ) : (
-          <PeerInitials id={activeThreadId} name={displayName} fallback="U" className="w-16 h-16 text-xl mb-3" />
+          <PeerInitials id={activeThreadId} name={displayName} fallback="U" className="w-20 h-20 text-2xl mb-3 border-2 border-border/60 shadow-sm" />
         )}
         {editingAlias ? (
           <div className="flex items-center gap-2 mt-2 w-full px-2">

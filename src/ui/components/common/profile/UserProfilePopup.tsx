@@ -59,6 +59,7 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
 
   // ── Image lightbox ─────────────────────────────────────────────────────
   const [imageViewer, setImageViewer] = React.useState<{ url: string; label: string } | null>(null);
+  const [imageZoom, setImageZoom] = React.useState(1);
 
   const isInGroup = !!(activeThreadId && /^-?\d{15,}$/.test(activeThreadId));
 
@@ -117,7 +118,7 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
   React.useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (imageViewer) { setImageViewer(null); }
+        if (imageViewer) { setImageViewer(null); setImageZoom(1); }
         else if (showGroups) setShowGroups(false);
         else onClose();
       }
@@ -444,9 +445,9 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
     setEditingAlias(false);
   };
 
-  const modalW = 320;
+  const modalW = 360;
   const left = Math.max(8, Math.min(anchorX + 12, window.innerWidth - modalW - 8));
-  const topPos = Math.max(8, Math.min(anchorY - 60, window.innerHeight - 600));
+  const topPos = Math.max(8, Math.min(anchorY - 60, window.innerHeight - 620));
 
   // ── Mutual groups sub-view ──────────────────────────────────────────────────
   if (showGroups) {
@@ -498,18 +499,18 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
         onClick={e => e.stopPropagation()}>
 
         {/* Cover */}
-        <div className="relative h-28 bg-gradient-to-br from-blue-800 via-indigo-800 to-purple-900 flex-shrink-0">
+        <div className="relative h-36 bg-gradient-to-br from-blue-800 via-indigo-800 to-purple-900 flex-shrink-0">
           {cover && (
             <button
               className="absolute inset-0 w-full h-full focus:outline-none group"
-              onClick={() => setImageViewer({ url: cover, label: 'Ảnh bìa' })}
+              onClick={() => { setImageViewer({ url: cover, label: 'Ảnh bìa' }); setImageZoom(1); }}
               title="Xem ảnh bìa"
             >
               <img src={cover} alt="" className="w-full h-full object-cover group-hover:brightness-90 transition-all"
                 onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="bg-black/50 rounded-full p-1.5">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <span className="bg-black/50 rounded-full p-2">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                     <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
                   </svg>
@@ -528,17 +529,17 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
 
         {/* Avatar + Name */}
         <div className="relative px-4 pb-0">
-          <div className="absolute -top-10 left-4">
+          <div className="absolute -top-12 left-4">
             {avatar ? (
               <button
                 className="relative focus:outline-none group"
-                onClick={() => setImageViewer({ url: avatar, label: 'Ảnh đại diện' })}
+                onClick={() => { setImageViewer({ url: avatar, label: 'Ảnh đại diện' }); setImageZoom(1); }}
                 title="Xem ảnh đại diện"
               >
-                <img src={avatar} alt={name} className="w-20 h-20 rounded-full object-cover border-4 border-border group-hover:brightness-90 transition-all" />
+                <img src={avatar} alt={name} className="w-24 h-24 rounded-full object-cover border-4 border-popover shadow-xl group-hover:brightness-90 transition-all" />
                 <span className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="bg-black/50 rounded-full p-1">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                  <span className="bg-black/50 rounded-full p-1.5">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                       <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                       <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
                     </svg>
@@ -546,10 +547,10 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
                 </span>
               </button>
             ) : (
-              <PeerInitials id={userId} name={name} fallback="U" className="w-20 h-20 border-4 border-border text-2xl" />
+              <PeerInitials id={userId} name={name} fallback="U" className="w-24 h-24 border-4 border-popover shadow-xl text-3xl" />
             )}
           </div>
-          <div className="pl-24 pt-2 pb-3 min-w-0">
+          <div className="pl-28 pt-2 pb-3 min-w-0">
             {loading && !userInfo ? (
               <div className="h-8 flex items-center">
                 <Spinner size={4} />
@@ -743,30 +744,111 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
       {/* ── Image lightbox ────────────────────────────────────────────── */}
       {imageViewer && (
         <div
-          className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-black/90 animate-in fade-in duration-150"
-          onClick={() => setImageViewer(null)}
+          className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-black/90 animate-in fade-in duration-150 select-none"
+          onClick={() => { setImageViewer(null); setImageZoom(1); }}
+          onWheel={(e) => {
+            e.stopPropagation();
+            if (e.deltaY < 0) {
+              setImageZoom(z => Math.min(3, Number((z + 0.2).toFixed(2))));
+            } else {
+              setImageZoom(z => Math.max(0.5, Number((z - 0.2).toFixed(2))));
+            }
+          }}
         >
-          {/* Header */}
-          <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-5 py-3 bg-gradient-to-b from-black/70 to-transparent z-10">
-            <span className="text-white text-sm font-medium">{imageViewer.label}</span>
-            <button
-              onClick={() => setImageViewer(null)}
-              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-          {/* Image */}
-          <img
-            src={imageViewer.url}
-            alt={imageViewer.label}
-            className="max-w-[90vw] max-h-[85vh] object-contain rounded-lg shadow-2xl"
+          {/* Header controls */}
+          <div
+            className="absolute top-0 left-0 right-0 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent z-10"
             onClick={e => e.stopPropagation()}
-          />
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-white text-sm font-semibold tracking-wide">{imageViewer.label}</span>
+              <span className="text-white/60 text-xs px-2 py-0.5 rounded-full bg-white/10 font-mono">
+                {Math.round(imageZoom * 100)}%
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {/* Zoom Out */}
+              <button
+                onClick={() => setImageZoom(z => Math.max(0.5, Number((z - 0.25).toFixed(2))))}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                title="Thu nhỏ (-)"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
+                </svg>
+              </button>
+              {/* Zoom In */}
+              <button
+                onClick={() => setImageZoom(z => Math.min(3, Number((z + 0.25).toFixed(2))))}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                title="Phóng to (+)"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
+                </svg>
+              </button>
+              {/* Reset Zoom */}
+              <button
+                onClick={() => setImageZoom(1)}
+                className="px-2.5 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-xs font-medium transition-colors"
+                title="Về kích thước chuẩn (100%)"
+              >
+                1:1
+              </button>
+              {/* Download */}
+              <button
+                onClick={async () => {
+                  try {
+                    const cleanName = String(name || '').replace(/[\\/:*?"<>|]/g, '_');
+                    const defaultName = `${cleanName}_${imageViewer.label === 'Ảnh đại diện' ? 'avatar' : 'cover'}.jpg`;
+                    const res = await ipc.file?.saveAs({ remoteUrl: imageViewer.url, defaultName });
+                    if (res?.success && !res.canceled) {
+                      showNotification('Đã tải ảnh về máy', 'success');
+                    }
+                  } catch (err: any) {
+                    showNotification(`Lỗi tải ảnh: ${err?.message || err}`, 'error');
+                  }
+                }}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+                title="Tải ảnh về máy"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+              </button>
+              {/* Close */}
+              <button
+                onClick={() => { setImageViewer(null); setImageZoom(1); }}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors ml-1"
+                title="Đóng (Esc)"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Image Canvas */}
+          <div
+            className="flex items-center justify-center transition-transform duration-150 ease-out"
+            style={{ transform: `scale(${imageZoom})` }}
+            onClick={e => e.stopPropagation()}
+          >
+            <img
+              src={imageViewer.url}
+              alt={imageViewer.label}
+              className={
+                imageViewer.label === 'Ảnh đại diện'
+                  ? "w-[min(80vw,80vh,480px)] h-[min(80vw,80vh,480px)] object-cover rounded-2xl shadow-2xl border-2 border-white/20"
+                  : "w-[min(90vw,760px)] max-h-[80vh] object-contain rounded-xl shadow-2xl border-2 border-white/20"
+              }
+              draggable={false}
+            />
+          </div>
+
           {/* Hint */}
-          <p className="absolute bottom-4 text-foreground/40 text-xs">Nhấn bên ngoài hoặc Esc để đóng</p>
+          <p className="absolute bottom-4 text-white/50 text-xs">Cuộn chuột để phóng to/thu nhỏ • Nhấn bên ngoài hoặc Esc để đóng</p>
         </div>
       )}
     </div>

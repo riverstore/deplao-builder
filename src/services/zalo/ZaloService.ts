@@ -931,13 +931,13 @@ export default class ZaloService {
      * Lấy thông tin của người dùng Zalo
      * @param userId ID của người dùng cần lấy thông tin
      */
-    public async getUserInfo(userId: string | string[]): Promise<UserInfoResponse> {
+    public async getUserInfo(userId: string | string[], avatarSize: number = 240): Promise<UserInfoResponse> {
         if (!this.api) {
             throw new Error("API not initialized. Please ensure you've called initialize() first.");
         }
 
         try {
-            return await this.api.getUserInfo(userId);
+            return await this.api.getUserInfo(userId, avatarSize as any);
         } catch (error: any) {
             // Giữ mã lỗi Zalo (ZaloApiError.code) để caller phân loại hết phiên / giới hạn tần suất.
             const wrapped: any = new Error(error?.message || error);
