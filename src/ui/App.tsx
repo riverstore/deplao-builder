@@ -272,6 +272,7 @@ export default function App() {
   const [initializing, setInitializing] = useState(true);
   const [lockEnabled, setLockEnabled] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [autoLockMinutes, setAutoLockMinutes] = useState(0);
   // Khoá app → ẩn lại hội thoại Zalo đã mở bằng PIN (ZL-03)
   useEffect(() => { if (isLocked) useAppStore.getState().lockAllHidden(); }, [isLocked]);
   // Khoá app → không hiện thông báo tin nhắn trong app (lộ nội dung trên màn khoá), bỏ thẻ đang hiện
@@ -417,9 +418,14 @@ export default function App() {
   // ─── Lock screen: check status on mount ─────────────────────────────────
   useEffect(() => {
     ipc.lockScreen.status().then(res => {
-      if (res.success && res.enabled) {
-        setLockEnabled(true);
-        setIsLocked(true);
+      if (res.success) {
+        if (res.enabled) {
+          setLockEnabled(true);
+          setIsLocked(true);
+        }
+        if (typeof res.autoLockMinutes === 'number') {
+          setAutoLockMinutes(res.autoLockMinutes);
+        }
       }
     });
   }, []);
@@ -503,14 +509,60 @@ export default function App() {
   // ─── Lock screen: react to enable/disable from Settings ───────────────
   useEffect(() => {
     const handleChanged = (e: Event) => {
-      const enabled = (e as CustomEvent).detail?.enabled ?? false;
-      // Vừa bật trong Cài đặt: chỉ bật phím tắt Ctrl+Shift+L / nút khoá, KHÔNG khoá ngay — khoá ngay gỡ cả Cài đặt nên màn
-      // "Lưu recovery key" hiện một lần sau khi bật (LockScreenSettings) không bao giờ thấy. Lần mở app sau sẽ hỏi mật khẩu.
-      setLockEnabled(enabled);
+      const detail = (e as CustomEvent).detail;
+      if (typeof detail?.enabled === 'boolean') {
+        // Vừa bật trong Cài đặt: chỉ bật phím tắt Ctrl+Shift+L / nút khoá, KHÔNG khoá ngay — khoá ngay gỡ cả Cài đặt nên màn
+        // "Lưu recovery key" hiện một lần sau khi bật (LockScreenSettings) không bao giờ thấy. Lần mở app sau sẽ hỏi mật khẩu.
+        setLockEnabled(detail.enabled);
+      }
+      if (typeof detail?.autoLockMinutes === 'number') {
+        setAutoLockMinutes(detail.autoLockMinutes);
+      }
     };
     window.addEventListener('lockScreen:changed', handleChanged);
     return () => window.removeEventListener('lockScreen:changed', handleChanged);
   }, []);
+
+  // ─── Lock screen: auto-lock on inactivity ──────────────────────────────
+  useEffect(() => {
+    if (!lockEnabled || isLocked || autoLockMinutes <= 0) return;
+
+    let lastActivityTime = Date.now();
+    const timeoutMs = autoLockMinutes * 60 * 1000;
+    let lastThrottleTime = 0;
+
+    const handleUserActivity = () => {
+      const now = Date.now();
+      if (now - lastActivityTime >= timeoutMs) {
+        setIsLocked(true);
+        return;
+      }
+      if (now - lastThrottleTime > 1000) {
+        lastActivityTime = now;
+        lastThrottleTime = now;
+      }
+    };
+
+    const checkTimeout = () => {
+      if (Date.now() - lastActivityTime >= timeoutMs) {
+        setIsLocked(true);
+      }
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart'] as const;
+    events.forEach(ev => window.addEventListener(ev, handleUserActivity, { passive: true }));
+    window.addEventListener('focus', checkTimeout);
+    document.addEventListener('visibilitychange', checkTimeout);
+
+    const timer = setInterval(checkTimeout, 5000);
+
+    return () => {
+      events.forEach(ev => window.removeEventListener(ev, handleUserActivity));
+      window.removeEventListener('focus', checkTimeout);
+      document.removeEventListener('visibilitychange', checkTimeout);
+      clearInterval(timer);
+    };
+  }, [lockEnabled, isLocked, autoLockMinutes]);
 
   // ─── Account switcher (Ctrl+Tab): global keyboard handler ──────────────
   useEffect(() => {

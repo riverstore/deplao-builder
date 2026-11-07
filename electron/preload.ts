@@ -986,6 +986,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   lockScreen: {
     status:           () => ipcRenderer.invoke('lockScreen:status'),
     setup:            (params: { password: string }) => ipcRenderer.invoke('lockScreen:setup', params),
+    setAutoLock:      (params: { minutes: number }) => ipcRenderer.invoke('lockScreen:setAutoLock', params),
     verify:           (params: { password: string }) => ipcRenderer.invoke('lockScreen:verify', params),
     verifyRecovery:   (params: { recoveryKey: string }) => ipcRenderer.invoke('lockScreen:verifyRecovery', params),
     changePassword:   (params: { oldPassword: string; newPassword: string }) => ipcRenderer.invoke('lockScreen:changePassword', params),

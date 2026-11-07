@@ -36,10 +36,12 @@ export function registerLockScreenIpc() {
             const enabled = db().getSetting('lock_screen_enabled') === '1';
             const biometricEnabled = db().getSetting('lock_screen_biometric') === '1';
             const biometricAvailable = checkBiometricAvailable();
+            const autoLockVal = parseInt(db().getSetting('lock_screen_auto_lock') || '0', 10);
+            const autoLockMinutes = isNaN(autoLockVal) ? 0 : autoLockVal;
             const now = Date.now();
             const isCoolingDown = now < cooldownUntil;
             const remainingCooldown = isCoolingDown ? Math.ceil((cooldownUntil - now) / 1000) : 0;
-            return { success: true, enabled, biometricEnabled, biometricAvailable, failedAttempts, isCoolingDown, remainingCooldown };
+            return { success: true, enabled, autoLockMinutes, biometricEnabled, biometricAvailable, failedAttempts, isCoolingDown, remainingCooldown };
         } catch (e: any) {
             return { success: false, error: e.message };
         }
@@ -71,6 +73,19 @@ export function registerLockScreenIpc() {
             return { success: true, recoveryKey };
         } catch (e: any) {
             Logger.error(`[LockScreen] setup error: ${e.message}`);
+            return { success: false, error: e.message };
+        }
+    });
+
+    // ─── Set auto-lock timer (minutes, 0 = disabled) ────────────────────
+    ipcMain.handle('lockScreen:setAutoLock', async (_event, { minutes }: { minutes: number }) => {
+        try {
+            const mins = Math.max(0, Math.floor(Number(minutes) || 0));
+            db().setSetting('lock_screen_auto_lock', String(mins));
+            Logger.log(`[LockScreen] Auto-lock set to ${mins} minutes`);
+            return { success: true, autoLockMinutes: mins };
+        } catch (e: any) {
+            Logger.error(`[LockScreen] setAutoLock error: ${e.message}`);
             return { success: false, error: e.message };
         }
     });
