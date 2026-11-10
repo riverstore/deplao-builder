@@ -25,7 +25,7 @@ import TelegramChatSettings from '../telegram/quick/TelegramChatSettings';
 import ZaloAutoDeleteSection from '../zalo/ZaloAutoDeleteSection';
 import { useGroupMemberSync } from '@/hooks/chat/useGroupMemberSync';
 import { useHiddenScanConsent } from '@/lib/crm/hiddenScanConsent';
-import { ArrowDownIcon, ArrowUpIcon, BellIcon, BellOffIcon, CloseIcon, MapPinIcon, PinIcon, SettingsIcon, TrashIcon, UserIcon, UsersIcon } from '@/components/common/icons';
+import { ArrowDownIcon, ArrowUpIcon, BellIcon, BellOffIcon, CloseIcon, MapPinIcon, PinIcon, SettingsIcon, TrashIcon, UserCheckIcon, UserIcon, UserPlusIcon, UsersIcon } from '@/components/common/icons';
 import { toLocalMediaUrl } from '@/lib/media/localMedia';
 import {
   GROUP_MEMBERS_PAGE_SIZE, appendMemberPage, groupMembersApiSyncedAt, markGroupMembersApiSynced, memberFromRow,
@@ -1301,6 +1301,131 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
   };
 
   const visibleRows = React.useMemo(() => withLiveMemberInfo(rows, groupInfo?.members), [rows, groupInfo?.members]);
+
+  // ─── Danh bạ, alias & trạng thái bạn bè ──────────────────────────────────
+  const storeContacts = useChatStore(state => state.contacts[myAccountId]) || [];
+  const contactMap = React.useMemo(() => {
+    const map = new Map<string, any>();
+    storeContacts.forEach(c => map.set(c.contact_id, c));
+    return map;
+  }, [storeContacts]);
+
+  const [extraContacts, setExtraContacts] = useState<Record<string, any>>({});
+  const requestedExtraRef = useRef<Set<string>>(new Set());
+
+  // Tải danh sách bạn bè từ DB
+  const [friendUserIds, setFriendUserIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!myAccountId || isNonZalo(channel)) return;
+    DataAccessor.getFriends({ zaloId: myAccountId }).then((res: any) => {
+      if (res?.success && Array.isArray(res.friends)) {
+        setFriendUserIds(new Set(res.friends.map((f: any) => String(f.userId))));
+      }
+    }).catch(() => {});
+  }, [myAccountId, channel]);
+
+  // Tra cứu thêm alias từ DB cho các thành viên chưa có trong storeContacts
+  useEffect(() => {
+    if (!myAccountId || visibleRows.length === 0) return;
+    const missing: string[] = [];
+    for (const m of visibleRows) {
+      const uid = m?.userId;
+      if (!uid || uid === myAccountId || contactMap.has(uid) || requestedExtraRef.current.has(uid)) continue;
+      requestedExtraRef.current.add(uid);
+      missing.push(uid);
+    }
+    if (missing.length === 0) return;
+    const accountId = myAccountId;
+    (async () => {
+      const found: Record<string, any> = {};
+      for (let i = 0; i < missing.length; i += 200) {
+        const res: any = await DataAccessor.getConversationsByIds(accountId, missing.slice(i, i + 200)).catch(() => null);
+        if (res?.success) {
+          for (const c of (res.items || [])) found[String(c.contact_id)] = c;
+        }
+      }
+      if (Object.keys(found).length === 0) return;
+      setExtraContacts(prev => ({ ...prev, ...found }));
+    })();
+  }, [visibleRows, contactMap, myAccountId]);
+
+  const getContact = useCallback((userId: string) => contactMap.get(userId) || extraContacts[userId], [contactMap, extraContacts]);
+
+  const checkIsFriend = useCallback((userId: string) => {
+    if (userId === myAccountId) return true;
+    if (friendUserIds.has(userId)) return true;
+    const c = getContact(userId);
+    if (c?.is_friend === 1 || c?.isFr === 1) return true;
+    return false;
+  }, [myAccountId, friendUserIds, getContact]);
+
+  // Quản lý trạng thái gửi lời mời kết bạn
+  const [sentRequests, setSentRequests] = useState<Record<string, boolean>>({});
+  const [sendingRequests, setSendingRequests] = useState<Record<string, boolean>>({});
+
+  const handleSendFriendRequest = async (member: GroupMember, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (sendingRequests[member.userId] || sentRequests[member.userId]) return;
+    const auth = getAuth();
+    if (!auth) return;
+    setSendingRequests(prev => ({ ...prev, [member.userId]: true }));
+    try {
+      const res = await ipc.zalo?.sendFriendRequest({
+        auth,
+        userId: member.userId,
+        msg: `Xin chào! Mình là thành viên nhóm ${groupInfo?.name || ''}, kết bạn với mình nhé!`,
+      });
+      if (res?.error) {
+        showNotification(res.error || 'Gửi lời mời kết bạn thất bại', 'error');
+      } else {
+        setSentRequests(prev => ({ ...prev, [member.userId]: true }));
+        showNotification(`Đã gửi lời mời kết bạn tới ${member.displayName || member.userId}`, 'success');
+      }
+    } catch (err: any) {
+      showNotification('Gửi lời mời thất bại: ' + (err?.message || err), 'error');
+    } finally {
+      setSendingRequests(prev => ({ ...prev, [member.userId]: false }));
+    }
+  };
+
+  const getMemberDisplayName = useCallback((m: GroupMember) => {
+    const contact = getContact(m.userId);
+    const alias = contact?.alias;
+    if (alias && alias.trim()) {
+      return {
+        main: alias.trim(),
+        sub: m.displayName && m.displayName !== alias.trim() ? `Tên Zalo: ${m.displayName}` : null,
+      };
+    }
+    return {
+      main: m.displayName || m.userId,
+      sub: null,
+    };
+  }, [getContact]);
+
+  // Phân nhóm thành viên: Trưởng/phó nhóm, Bạn bè, Chưa kết bạn
+  const sections = React.useMemo(() => {
+    if (!isZaloCh(channel)) {
+      const admins = visibleRows.filter(m => groupRoleKind(m.role, channel) !== 'member');
+      const members = visibleRows.filter(m => groupRoleKind(m.role, channel) === 'member');
+      const res = [];
+      if (admins.length > 0) res.push({ key: 'admins', title: 'Trưởng & phó nhóm', items: admins });
+      if (members.length > 0) res.push({ key: 'members', title: 'Thành viên', items: members });
+      return res;
+    }
+
+    const admins = visibleRows.filter(m => groupRoleKind(m.role, channel) !== 'member');
+    const normalMembers = visibleRows.filter(m => groupRoleKind(m.role, channel) === 'member');
+    const friends = normalMembers.filter(m => checkIsFriend(m.userId));
+    const strangers = normalMembers.filter(m => !checkIsFriend(m.userId));
+
+    const res = [];
+    if (admins.length > 0) res.push({ key: 'admins', title: 'Trưởng & phó nhóm', items: admins });
+    if (friends.length > 0) res.push({ key: 'friends', title: 'Bạn bè', items: friends });
+    if (strangers.length > 0) res.push({ key: 'strangers', title: 'Chưa kết bạn', items: strangers });
+    return res;
+  }, [visibleRows, channel, checkIsFriend]);
+
   const getStatusText = (member: GroupMember) => {
     const live = userPresence[`${myAccountId}_${member.userId}`];
     if (live?.status === 'online') return 'Đang online';
@@ -1497,56 +1622,110 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
       )}
 
       <div ref={scrollRef} onScroll={onListScroll} className="flex-1 overflow-y-auto">
-        {visibleRows.map(m => {
-          const kind = groupRoleKind(m.role, channel);
-          const statusText = getStatusText(m);
-          const avatarSrc = m.avatar ? toLocalMediaUrl(m.avatar) : '';
-          return (
-            <div key={m.userId} className="flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors group">
-              {/* Avatar - clickable */}
-              <button
-                onClick={(e) => onShowProfile?.(m.userId, e.clientX, e.clientY)}
-                className="flex-shrink-0 focus:outline-none hover:opacity-80 transition-opacity"
-              >
-                {avatarSrc ? (
-                  <img src={avatarSrc} alt="" loading="lazy" className="w-9 h-9 rounded-full object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                ) : (
-                  <PeerInitials id={m.userId} name={m.displayName} className="w-9 h-9 text-xs" />
-                )}
-              </button>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-foreground truncate">{m.displayName || m.userId}</p>
-                {statusText && (
-                  <p className={`text-[11px] truncate ${statusText === 'Đang online' ? 'text-green-400' : 'text-subtle-foreground'}`}>
-                    {statusText}
-                  </p>
-                )}
-                {kind !== 'member' && (
-                  <div className="flex items-center gap-1">
-                    {kind === 'owner' && <span className="text-[11px] bg-yellow-600/30 text-yellow-400 px-1.5 rounded">{groupRoleLabel(kind)}</span>}
-                    {kind === 'admin' && <span className="text-[11px] bg-blue-600/30 text-blue-400 px-1.5 rounded">{groupRoleLabel(kind)}</span>}
-                  </div>
-                )}
-              </div>
-              {/* Context menu - admin only, not for group owner */}
-              {isAdmin && (channelCap?.supportsGroupAdmin ?? true) && kind !== 'owner' && m.userId !== myAccountId && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    setCtxPos({ top: rect.top, left: rect.left - 196 });
-                    setCtxMember(m);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-all">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
-                  </svg>
-                </button>
-              )}
+        {sections.map(sec => (
+          <div key={sec.key} className="mb-2">
+            <div className="sticky top-0 z-10 bg-muted/90 backdrop-blur-sm px-3 py-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between border-y border-border/40">
+              <span>{sec.title}</span>
+              <span className="text-[11px] font-normal text-muted-foreground">({sec.items.length})</span>
             </div>
-          );
-        })}
+            <div>
+              {sec.items.map(m => {
+                const kind = groupRoleKind(m.role, channel);
+                const statusText = getStatusText(m);
+                const avatarSrc = m.avatar ? toLocalMediaUrl(m.avatar) : '';
+                const nameInfo = getMemberDisplayName(m);
+                const isFriend = checkIsFriend(m.userId);
+                const isMe = m.userId === myAccountId;
+
+                return (
+                  <div key={m.userId} className="flex items-center gap-2 px-3 py-2 hover:bg-muted transition-colors group">
+                    {/* Avatar - clickable */}
+                    <button
+                      onClick={(e) => onShowProfile?.(m.userId, e.clientX, e.clientY)}
+                      className="flex-shrink-0 focus:outline-none hover:opacity-80 transition-opacity"
+                    >
+                      {avatarSrc ? (
+                        <img src={avatarSrc} alt="" loading="lazy" className="w-9 h-9 rounded-full object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      ) : (
+                        <PeerInitials id={m.userId} name={nameInfo.main} className="w-9 h-9 text-xs" />
+                      )}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-foreground truncate">{nameInfo.main}</p>
+                        {isMe && (
+                          <span className="text-[10px] bg-muted-foreground/15 text-muted-foreground px-1.5 py-0.2 rounded-full flex-shrink-0">
+                            Bạn
+                          </span>
+                        )}
+                      </div>
+                      {nameInfo.sub && (
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {nameInfo.sub}
+                        </p>
+                      )}
+                      {statusText && (
+                        <p className={`text-[11px] truncate ${statusText === 'Đang online' ? 'text-green-500 font-medium' : 'text-subtle-foreground'}`}>
+                          {statusText}
+                        </p>
+                      )}
+                      {kind !== 'member' && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {kind === 'owner' && <span className="text-[10px] font-medium bg-amber-500/20 text-amber-500 border border-amber-500/30 px-1.5 rounded">{groupRoleLabel(kind)}</span>}
+                          {kind === 'admin' && <span className="text-[10px] font-medium bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 rounded">{groupRoleLabel(kind)}</span>}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Nút Kết bạn cho Zalo nếu chưa kết bạn và không phải chính mình */}
+                    {isZaloCh(channel) && !isMe && !isFriend && (
+                      sentRequests[m.userId] ? (
+                        <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full border border-border flex-shrink-0">
+                          <UserCheckIcon className="w-3 h-3 text-emerald-500" />
+                          Đã gửi
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => void handleSendFriendRequest(m, e)}
+                          disabled={sendingRequests[m.userId]}
+                          title="Gửi lời mời kết bạn"
+                          className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary-foreground bg-primary/10 hover:bg-primary px-2 py-0.5 rounded-full border border-primary/30 transition-all flex-shrink-0"
+                        >
+                          {sendingRequests[m.userId] ? (
+                            <Spinner size={3} />
+                          ) : (
+                            <>
+                              <UserPlusIcon className="w-3 h-3" />
+                              Kết bạn
+                            </>
+                          )}
+                        </button>
+                      )
+                    )}
+
+                    {/* Context menu - admin only, not for group owner */}
+                    {isAdmin && (channelCap?.supportsGroupAdmin ?? true) && kind !== 'owner' && !isMe && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setCtxPos({ top: rect.top, left: rect.left - 196 });
+                          setCtxMember(m);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-all flex-shrink-0">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
         {hasMore && (
           <div className="flex justify-center py-3">
             {listLoading
