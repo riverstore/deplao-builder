@@ -1315,11 +1315,23 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
 
   // Tải danh sách bạn bè từ DB
   const [friendUserIds, setFriendUserIds] = useState<Set<string>>(new Set());
+  const [friendNames, setFriendNames] = useState<Map<string, string>>(new Map());
   useEffect(() => {
     if (!myAccountId || isNonZalo(channel)) return;
     DataAccessor.getFriends({ zaloId: myAccountId }).then((res: any) => {
       if (res?.success && Array.isArray(res.friends)) {
-        setFriendUserIds(new Set(res.friends.map((f: any) => String(f.userId))));
+        const idSet = new Set<string>();
+        const nameMap = new Map<string, string>();
+        for (const f of res.friends) {
+          const uid = String(f.userId || f.user_id || '');
+          const name = String(f.displayName || f.display_name || '').trim();
+          if (uid) {
+            idSet.add(uid);
+            if (name && name !== uid) nameMap.set(uid, name);
+          }
+        }
+        setFriendUserIds(idSet);
+        setFriendNames(nameMap);
       }
     }).catch(() => {});
   }, [myAccountId, channel]);
@@ -1390,6 +1402,7 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
 
   const getMemberDisplayName = useCallback((m: GroupMember) => {
     const contact = getContact(m.userId);
+    // 1. Ưu tiên cao nhất: Biệt danh (alias) đặt riêng
     const alias = contact?.alias;
     if (alias && alias.trim()) {
       return {
@@ -1397,11 +1410,20 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
         sub: m.displayName && m.displayName !== alias.trim() ? `Tên Zalo: ${m.displayName}` : null,
       };
     }
+    // 2. Ưu tiên nhì: Tên bạn bè đã lưu trong danh bạ Zalo
+    const savedFriendName = friendNames.get(m.userId) || (checkIsFriend(m.userId) ? contact?.display_name : undefined);
+    if (savedFriendName && savedFriendName.trim() && savedFriendName.trim() !== m.userId) {
+      return {
+        main: savedFriendName.trim(),
+        sub: m.displayName && m.displayName !== savedFriendName.trim() ? `Tên Zalo: ${m.displayName}` : null,
+      };
+    }
+    // 3. Fallback: Tên hiển thị Zalo của thành viên
     return {
       main: m.displayName || m.userId,
       sub: null,
     };
-  }, [getContact]);
+  }, [getContact, friendNames, checkIsFriend]);
 
   // Phân nhóm thành viên: Trưởng/phó nhóm, Bạn bè, Chưa kết bạn
   const sections = React.useMemo(() => {

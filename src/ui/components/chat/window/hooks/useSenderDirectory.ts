@@ -83,7 +83,7 @@ export function useSenderDirectory(deps: {
       const contact = getContact(m.sender_id);
       const member = getGroupMember(m.sender_id);
       const isGroupThread = activeContact?.contact_type === 'group';
-      sender = contact?.alias || member?.displayName || contact?.display_name
+      sender = contact?.alias || (contact?.is_friend ? contact?.display_name : undefined) || member?.displayName || contact?.display_name
         || (!isGroupThread ? (activeContact?.alias || activeContact?.display_name) : '') || 'Thành viên';
     }
     return { text: extractMsgText(m), sender, timestamp: Number(m.timestamp) || Date.now() };

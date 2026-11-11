@@ -3,26 +3,94 @@
  * Dùng chung cho ChatWindow, MessageBubbles, MessageInput, và các component khác.
  */
 
-/** Zalo text reaction codes → Unicode emoji (dùng để convert khi display) */
+/** Zalo text reaction codes & emoticons → Unicode emoji (dùng để convert khi display) */
 export const ZALO_CODE_TO_EMOJI: Record<string, string> = {
-  '/-heart':   '❤️',  '/-strong':  '👍',  ':>':       '😄',  ':o':       '😮',
-  ':-((': '😢',  ':-h': '😡',  ':-*': '😘',  ":')": '😂',
-  '/-shit': '💩',  '/-rose': '🌹',  '/-break': '💔',  '/-weak': '👎',
-  ';xx': '😍',  ';-/': '😕',  ';-)': '😉',  '/-fade': '😶',
-  '/-li': '☀️',  '/-bd': '🎂',  '/-bome': '💣',  '/-ok': '👌',
-  '/-v': '✌️',  '/-thanks': '🤝',  '/-punch': '👊',  '/-share': '🔗',
-  '_()_': '🙏',  '/-no': '🙅',  '/-bad': '👎',  '/-loveu': '🫶',
-  '--b': '😞',  ':((': '😭',  'x-)': '😎',  '8-)': '🤓',
-  ';-d': '😁',  'b-)': '😎',  ':--|': '😐',  'p-(': '😔',
-  ':-bye': '👋',  '|-)': '😴',  ':wipe': '😅',  ':-dig': '🤔',
-  '&-(': '😰',  ':handclap': '👏',  '>-|': '😠',  ';-x': '🤫',
-  ':-o': '😲',  ';-s': '😳',  ';-a': '😨',  ':-<': '😢',
-  ':))': '😂',  '$-)': '🤑',  '/-beer': '🍺',
-  // Common text emoticons
-  ':-)': '🙂',  ':)': '🙂',  ':-(': '😞',  ':(': '😞',
-  ':-D': '😁',  ':D': '😁',  ':P': '😛',  ':p': '😛',
-  ':-P': '😛',  ':O': '😲',  '>:(': '😠',  ":'(": '😢',
+  // Zalo official shortcut codes
+  '/-heart':   '❤️',  '/-strong':  '👍',  '/-weak':    '👎',  '/-rose':    '🌹',
+  '/-break':   '💔',  '/-shit':    '💩',  '/-li':      '☀️',  '/-bd':      '🎂',
+  '/-bome':    '💣',  '/-ok':      '👌',  '/-v':       '✌️',  '/-thanks':  '🤝',
+  '/-punch':   '👊',  '/-share':   '🔗',  '_()_':      '🙏',  '/-no':      '🙅',
+  '/-bad':     '👎',  '/-loveu':   '🫶',  '/-fade':    '😶',  '/-beer':    '🍺',
+  '/-coffee':  '☕',  '/-hug':     '🤗',  ':handclap': '👏',  ':-bye':     '👋',
+  ':bye':      '👋',  ':wipe':     '😅',  ':-dig':     '🤔',  '--b':       '😞',
+
+  // Cười tươi / nhe răng (Big smile / Grin) — hỗ trợ cả chữ thường (:d) chuẩn Zalo lẫn chữ hoa (:D)
+  ':-D': '😁',  ':-d': '😁',  ':D': '😁',  ':d': '😁',
+  ';-D': '😁',  ';-d': '😁',  ';D': '😁',  ';d': '😁',
+  '=-D': '😁',  '=-d': '😁',  '=D': '😁',  '=d': '😁',
+
+  // Cười mỉm / thân thiện (Smile)
+  ':-)': '🙂',  ':)': '🙂',  ':-]': '🙂',  ':]': '🙂',
+  '=-)': '🙂',  '=)': '🙂',  '^^': '😊',   '^_^': '😊',
+
+  // Cười lớn / cười chảy nước mắt (Laugh / RoFl)
+  ":')": '😂',   ":'))": '😂',  ':)))': '😂',  ':))': '😂',
+  '=)))': '😂',  '=))': '😂',   ':>': '😄',    ':->': '😄',
+
+  // Lè lưỡi / trêu đùa (Tongue) — hỗ trợ cả :p và :P
+  ':-P': '😛',  ':-p': '😛',  ':P': '😛',  ':p': '😛',
+  '=-P': '😛',  '=-p': '😛',  '=P': '😛',  '=p': '😛',
+
+  // Ngạc nhiên (Surprise / Shock) — hỗ trợ cả :o và :O
+  ':-O': '😲',  ':-o': '😲',  ':O': '😲',  ':o': '😮',
+  '=-O': '😲',  '=-o': '😲',  '=O': '😲',  '=o': '😮',
+
+  // Nháy mắt (Wink)
+  ';-)': '😉',  ';)': '😉',   ';xx': '😍',
+
+  // Buồn / thất vọng (Sad)
+  ':-(': '😞',  ':(': '😞',   ':-[': '😞',  ':[': '😞',
+  '=-(': '😞',  '=(': '😞',   'p-(': '😔',  'P-(': '😔',
+
+  // Khóc (Cry)
+  ":'(": '😢',   ":'-(": '😢',  ':-(((': '😭', ':(((': '😭',
+  ':-((': '😢',  ':((': '😭',   ':-<': '😢',
+
+  // Giận dữ (Angry)
+  ':-h': '😡',  ':-H': '😡',  ':h': '😡',  ':H': '😡',
+  '>-|': '😠',  '>:(': '😠',
+
+  // Hôn (Kiss)
+  ':-*': '😘',  ':*': '😘',   ';-*': '😘',  ';*': '😘',
+
+  // Kính râm / ngầu (Cool)
+  'b-)': '😎',  'B-)': '😎',  'b)': '😎',   'B)': '😎',
+  'x-)': '😎',  'X-)': '😎',
+
+  // Kính cận / tri thức (Nerd)
+  '8-)': '🤓',  '8)': '🤓',
+
+  // Mất ngủ / buồn ngủ (Sleepy)
+  '|-)': '😴',  '|)': '😴',
+
+  // Nghi ngờ / bối rối (Confused)
+  ';-/': '😕',  ':-/': '😕',  ':/': '😕',   ':-\\': '😕',  ':\\': '😕',
+
+  // Vô cảm / nghiêm túc (Straight face)
+  ':--|': '😐', ':-|': '😐',  ':|': '😐',
+
+  // Im lặng / bí mật (Quiet / Secret)
+  ';-x': '🤫',  ';-X': '🤫',  ':-x': '🤫',  ':-X': '🤫',
+  ':x': '🤫',   ':X': '🤫',
+
+  // Lo lắng / hoảng hốt (Worried / Fear)
+  '&-(': '😰',  ';-a': '😨',  ';-A': '😨',  ':-a': '😨',  ':-A': '😨',
+
+  // Ngượng ngùng / đỏ mặt (Blush)
+  ';-s': '😳',  ';-S': '😳',  ':-s': '😳',  ':-S': '😳',
+
+  // Giàu có / hám tiền (Money)
+  '$-)': '🤑',  '$)': '🤑',
+
+  // Mèo (Cat)
+  ':-3': '😺',  ':3': '😺',
+
+  // Tim (Heart)
+  '<3': '❤️',   '</3': '💔',
 };
+
+/** Pre-sort các keys theo độ dài giảm dần một lần duy nhất để tối ưu hiệu năng */
+const SORTED_ZALO_CODES = Object.keys(ZALO_CODE_TO_EMOJI).sort((a, b) => b.length - a.length);
 
 /** Chuyển đổi Zalo reaction code → Unicode emoji (dùng cho display) */
 export function zaloCodeToEmoji(code: string): string {
@@ -34,9 +102,8 @@ export function convertZaloEmojis(text: string): string {
   if (!text) return text;
   const direct = ZALO_CODE_TO_EMOJI[text];
   if (direct) return direct;
-  const sorted = Object.keys(ZALO_CODE_TO_EMOJI).sort((a, b) => b.length - a.length);
   let result = text;
-  for (const code of sorted) {
+  for (const code of SORTED_ZALO_CODES) {
     if (result.includes(code)) {
       result = result.split(code).join(ZALO_CODE_TO_EMOJI[code]);
     }
