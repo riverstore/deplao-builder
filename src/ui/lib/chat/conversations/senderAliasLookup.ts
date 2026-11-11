@@ -8,27 +8,22 @@ import ipc from '@/lib/ipc';
 import DataAccessor, { isReadFailure } from '@/lib/data/DataAccessor';
 import { useEmployeeStore } from '@/store/employee/employeeStore';
 
-/** Cache alias theo id và theo tên hiển thị cho từng tài khoản: key = `${accountId}__${idOrName}` */
+/** Cache alias theo id cho từng tài khoản: key = `${accountId}__${contactId}` */
 const aliasByIdMap = new Map<string, string>();
-const aliasByNameMap = new Map<string, string>();
 
-/** Cache tên bạn bè đã lưu trong danh bạ Zalo */
+/** Cache tên bạn bè đã lưu trong danh bạ Zalo (bảng friends): key = `${accountId}__${userId}` */
 const friendByIdMap = new Map<string, string>();
-const friendByNameMap = new Map<string, string>();
 
 const initializedAccounts = new Set<string>();
 
 /** Đăng ký / cập nhật alias vào bộ nhớ cache */
-export function registerAlias(accountId: string, contactId: string, alias: string, displayName?: string): void {
+export function registerAlias(accountId: string, contactId: string, alias: string, _displayName?: string): void {
   if (!accountId || !contactId) return;
   const idKey = `${accountId}__${contactId}`;
   const cleanAlias = (alias || '').trim();
 
   if (cleanAlias) {
     aliasByIdMap.set(idKey, cleanAlias);
-    if (displayName && displayName.trim()) {
-      aliasByNameMap.set(`${accountId}__${displayName.trim().toLowerCase()}`, cleanAlias);
-    }
   } else {
     aliasByIdMap.delete(idKey);
   }
@@ -48,7 +43,7 @@ export function populateAliasesFromContacts(
   if (!accountId || !Array.isArray(contacts)) return;
   for (const c of contacts) {
     if (c.alias && c.alias.trim()) {
-      registerAlias(accountId, c.contact_id, c.alias.trim(), c.display_name || undefined);
+      registerAlias(accountId, c.contact_id, c.alias.trim());
     }
   }
 }
@@ -85,7 +80,6 @@ export async function initSenderAliasLookup(accountId: string, force = false): P
       const name = String(f.displayName || f.display_name || '').trim();
       if (uid && name && name !== uid) {
         friendByIdMap.set(`${accountId}__${uid}`, name);
-        friendByNameMap.set(`${accountId}__${name.toLowerCase()}`, name);
       }
     }
 
@@ -129,12 +123,6 @@ export function getAliasById(accountId: string, contactId: string): string | und
   return aliasByIdMap.get(`${accountId}__${contactId}`);
 }
 
-/** Lấy alias theo display_name */
-export function getAliasByName(accountId: string, displayName: string): string | undefined {
-  if (!accountId || !displayName) return undefined;
-  return aliasByNameMap.get(`${accountId}__${displayName.trim().toLowerCase()}`);
-}
-
 /** Lấy tên bạn bè đã lưu theo userId */
 export function getFriendSavedNameById(accountId: string, userId: string): string | undefined {
   if (!accountId || !userId) return undefined;
@@ -142,17 +130,46 @@ export function getFriendSavedNameById(accountId: string, userId: string): strin
 }
 
 /**
- * Tra cứu alias hoặc tên bạn bè đã lưu của người gửi tin nhắn (dùng cho tiền tố last_message).
+ * Tra cứu alias hoặc tên bạn bè đã lưu theo userId duy nhất.
  * Ưu tiên:
- * 1. Nếu tin nhắn từ chính hội thoại 1-1 đang xét và contact đó có alias hoặc tên bạn bè đã lưu.
- * 2. Nếu là nhóm, tra cứu theo danh sách thành viên trong groupInfoCache để lấy userId:
- *    - Lấy alias theo userId.
- *    - Lấy tên bạn bè đã lưu theo userId.
- * 3. Tra cứu alias theo ID trong cache.
- * 4. Tra cứu tên bạn bè đã lưu theo ID trong cache.
- * 5. Tra cứu alias theo Display Name trong cache.
- * 6. Tra cứu trong danh bạ contacts của useChatStore (theo ID và theo Display Name).
- * 7. Tra cứu ở các tài khoản khác (chế độ gộp hộp thư merged inbox).
+ * 1. Alias do người dùng tự đặt trong Deplao.
+ * 2. Tên bạn bè đã lưu trong danh bạ Zalo (bảng friends).
+ * 3. Tên/alias trong danh bạ contacts (nếu là bạn bè is_friend === 1).
+ */
+export function lookupByUserId(accountId: string, userId: string): string | undefined {
+  if (!accountId || !userId) return undefined;
+  const uid = String(userId).trim();
+  if (!uid) return undefined;
+
+  const alias = getAliasById(accountId, uid);
+  if (alias && alias.trim()) return alias.trim();
+
+  const friendName = getFriendSavedNameById(accountId, uid);
+  if (friendName && friendName.trim()) return friendName.trim();
+
+  const storeContacts = useChatStore.getState().contacts[accountId] || [];
+  const contact = storeContacts.find((c) => String(c.contact_id) === uid);
+  if (contact?.alias?.trim()) {
+    return contact.alias.trim();
+  }
+  if (contact?.is_friend === 1 && contact.display_name && contact.display_name.trim() !== uid) {
+    return contact.display_name.trim();
+  }
+
+  return undefined;
+}
+
+/**
+ * Tra cứu alias hoặc tên bạn bè đã lưu của người gửi tin nhắn (dùng cho tiền tố last_message).
+ * NGUYÊN TẮC:
+ * - TUYỆT ĐỐI KHÔNG tra cứu toàn cục theo tên hiển thị (display_name), vì trùng tên Zalo sẽ làm gán nhầm
+ *   biệt danh của người này cho người khác!
+ * - CHỈ tra cứu khi đã xác định được định danh duy nhất (userId):
+ *   1. Trong hội thoại 1-1: Đối phương chính là threadId (userId).
+ *   2. Trong hội thoại nhóm: rawSender được đối chiếu với danh sách thành viên CỦA CHÍNH NHÓM ĐÓ (threadId)
+ *      để tìm ra userId của thành viên gửi tin trong nhóm. Khi có userId duy nhất, mới tra alias/friend name.
+ *   3. Nếu rawSender chính là userId (chuỗi số từ sự kiện realtime): tra cứu trực tiếp theo userId.
+ *   4. Nếu không xác định được userId duy nhất: giữ nguyên tên gốc (trả về undefined).
  */
 export function resolveSenderAlias(
   rawSender: string,
@@ -160,7 +177,6 @@ export function resolveSenderAlias(
   threadId?: string,
 ): string | undefined {
   if (!rawSender) return undefined;
-  // Bỏ ngoặc vuông hoặc khoảng trắng thừa nếu có, ví dụ "[Tên]" -> "Tên"
   let cleanSender = rawSender.trim();
   if (cleanSender.startsWith('[') && cleanSender.endsWith(']')) {
     cleanSender = cleanSender.slice(1, -1).trim();
@@ -168,107 +184,74 @@ export function resolveSenderAlias(
   if (!cleanSender || cleanSender === 'Bạn' || cleanSender === 'You') return undefined;
 
   const currentAccountId = accountId || '';
-  const lowerSender = cleanSender.toLowerCase();
-
-  // 1. Kiểm tra nhanh: Nếu threadId là hội thoại 1-1 của chính liên hệ đó
-  if (currentAccountId && threadId) {
-    const threadContact = (useChatStore.getState().contacts[currentAccountId] || []).find((c) => c.contact_id === threadId);
-    if (threadContact) {
-      if (threadContact.alias?.trim()) return threadContact.alias.trim();
-      const friendSaved = getFriendSavedNameById(currentAccountId, threadId);
-      if (friendSaved && friendSaved.trim()) return friendSaved.trim();
-      if (threadContact.is_friend === 1 && threadContact.display_name && threadContact.display_name.trim() !== threadId) {
-        return threadContact.display_name.trim();
+  if (!currentAccountId) {
+    // Không có accountId, nếu cleanSender là userId có thể kiểm tra qua các account
+    if (/^\d+$/.test(cleanSender)) {
+      const allAccounts = Object.keys(useChatStore.getState().contacts || {});
+      for (const acc of allAccounts) {
+        const found = lookupByUserId(acc, cleanSender);
+        if (found) return found;
       }
     }
+    return undefined;
   }
 
-  // 2. Nếu là hội thoại nhóm có threadId: tra cứu thành viên trong groupInfoCache
-  if (currentAccountId && threadId) {
+  // 1. Nếu cleanSender chính là userId (chỉ chứa số hoặc đã khớp ID trong alias/friend cache)
+  if (/^\d+$/.test(cleanSender) || aliasByIdMap.has(`${currentAccountId}__${cleanSender}`) || friendByIdMap.has(`${currentAccountId}__${cleanSender}`)) {
+    const res = lookupByUserId(currentAccountId, cleanSender);
+    if (res) return res;
+  }
+
+  // 2. Nếu có threadId: phân biệt theo ngữ cảnh nhóm hoặc chat 1-1
+  if (threadId) {
     const groupInfo = useAppStore.getState().groupInfoCache?.[currentAccountId]?.[threadId];
     if (groupInfo?.members?.length) {
-      const member = groupInfo.members.find(
-        (m) => String(m.userId) === cleanSender || (m.displayName && m.displayName.trim().toLowerCase() === lowerSender),
-      );
-      if (member) {
-        const memberId = String(member.userId);
-        // Tra theo memberId trong aliasByIdMap
-        const aliasById = getAliasById(currentAccountId, memberId);
-        if (aliasById) return aliasById;
+      // 2a. Hội thoại nhóm: Tìm thành viên trong CHÍNH NHÓM ĐÓ khớp với cleanSender
+      const lowerSender = cleanSender.toLowerCase();
+      const matchedMembers = groupInfo.members.filter((m) => {
+        if (String(m.userId) === cleanSender) return true;
+        return m.displayName && m.displayName.trim().toLowerCase() === lowerSender;
+      });
 
-        // Tra theo memberId trong friendByIdMap (tên bạn bè đã lưu)
-        const friendSaved = getFriendSavedNameById(currentAccountId, memberId);
-        if (friendSaved && friendSaved.trim()) return friendSaved.trim();
-
-        // Tra theo memberId trong contacts của store
-        const storeContacts = useChatStore.getState().contacts[currentAccountId] || [];
-        const contactMatch = storeContacts.find((c) => c.contact_id === memberId);
-        if (contactMatch?.alias?.trim()) {
-          registerAlias(currentAccountId, memberId, contactMatch.alias.trim(), member.displayName);
-          return contactMatch.alias.trim();
-        }
-        if (contactMatch?.is_friend === 1 && contactMatch.display_name && contactMatch.display_name.trim() !== memberId) {
-          return contactMatch.display_name.trim();
-        }
+      if (matchedMembers.length === 1) {
+        // Tìm thấy duy nhất 1 thành viên khớp tên/id trong nhóm
+        const targetUserId = String(matchedMembers[0].userId);
+        const resolved = lookupByUserId(currentAccountId, targetUserId);
+        if (resolved) return resolved;
+        // Thành viên này không có alias và không có tên bạn bè đã lưu -> giữ nguyên tên gốc
+        return undefined;
       }
+
+      if (matchedMembers.length > 1) {
+        // Nếu có nhiều người trùng tên trong nhóm, chỉ nhận khi có người khớp chính xác userId
+        const exactIdMatch = matchedMembers.find((m) => String(m.userId) === cleanSender);
+        if (exactIdMatch) {
+          const resolved = lookupByUserId(currentAccountId, String(exactIdMatch.userId));
+          if (resolved) return resolved;
+        }
+        return undefined;
+      }
+
+      // Không tìm thấy trong members của nhóm -> giữ nguyên tên gốc
+      return undefined;
+    }
+
+    // 2b. Kiểm tra nếu là chat 1-1 (threadId là contact_id cá nhân)
+    const threadContact = (useChatStore.getState().contacts[currentAccountId] || []).find((c) => c.contact_id === threadId);
+    const isOneOnOne = threadContact ? threadContact.contact_type === 'user' : !threadId.endsWith('_g');
+    if (isOneOnOne) {
+      // Trong chat 1-1, đối phương chính là threadId
+      const lowerSender = cleanSender.toLowerCase();
+      const isTarget = cleanSender === threadId
+        || (threadContact?.display_name && threadContact.display_name.trim().toLowerCase() === lowerSender);
+      if (isTarget) {
+        const resolved = lookupByUserId(currentAccountId, threadId);
+        if (resolved) return resolved;
+      }
+      return undefined;
     }
   }
 
-  // 3. Tra cứu trực tiếp theo ID trong alias cache
-  if (currentAccountId) {
-    const byId = getAliasById(currentAccountId, cleanSender);
-    if (byId) return byId;
-
-    // 4. Tra cứu theo ID trong danh bạ bạn bè đã lưu
-    const friendById = getFriendSavedNameById(currentAccountId, cleanSender);
-    if (friendById) return friendById;
-
-    // 5. Tra cứu trực tiếp theo Display Name trong alias cache
-    const byName = getAliasByName(currentAccountId, cleanSender);
-    if (byName) return byName;
-
-    // 6. Tra cứu tên bạn bè theo Display Name
-    const friendByName = friendByNameMap.get(`${currentAccountId}__${lowerSender}`);
-    if (friendByName) return friendByName;
-  }
-
-  // 7. Tra cứu trong contacts của useChatStore cho tài khoản hiện tại
-  if (currentAccountId) {
-    const accountContacts = useChatStore.getState().contacts[currentAccountId] || [];
-    // Khớp theo contact_id
-    const cById = accountContacts.find((c) => c.contact_id === cleanSender);
-    if (cById?.alias?.trim()) {
-      registerAlias(currentAccountId, cleanSender, cById.alias.trim(), cById.display_name);
-      return cById.alias.trim();
-    }
-    if (cById?.is_friend === 1 && cById.display_name && cById.display_name.trim() !== cleanSender) {
-      return cById.display_name.trim();
-    }
-    // Khớp theo display_name
-    const cByName = accountContacts.find(
-      (c) => c.display_name && c.display_name.trim().toLowerCase() === lowerSender,
-    );
-    if (cByName?.alias?.trim()) {
-      registerAlias(currentAccountId, cByName.contact_id, cByName.alias.trim(), cByName.display_name);
-      return cByName.alias.trim();
-    }
-  }
-
-  // 8. Thử tìm trong contacts của tất cả các tài khoản khác (ví dụ chế độ gộp trang merged mode)
-  const allContacts = useChatStore.getState().contacts;
-  for (const accId of Object.keys(allContacts)) {
-    if (accId === currentAccountId) continue;
-    const list = allContacts[accId] || [];
-    const match = list.find(
-      (c) => c.contact_id === cleanSender || (c.display_name && c.display_name.trim().toLowerCase() === lowerSender),
-    );
-    if (match?.alias?.trim()) {
-      return match.alias.trim();
-    }
-    if (match?.is_friend === 1 && match.display_name && match.display_name.trim() !== cleanSender) {
-      return match.display_name.trim();
-    }
-  }
-
+  // Tuyệt đối không tra cứu mò theo tên toàn cục
   return undefined;
 }
