@@ -932,13 +932,13 @@ export default class ZaloService {
      * Get info about a Zalo user
      * @param userId ID of the user to get info for
      */
-    public async getUserInfo(userId: string | string[]): Promise<UserInfoResponse> {
+    public async getUserInfo(userId: string | string[], avatarSize: number = 240): Promise<UserInfoResponse> {
         if (!this.api) {
             throw new Error("API not initialized. Please ensure you've called initialize() first.");
         }
 
         try {
-            return await this.api.getUserInfo(userId);
+            return await this.api.getUserInfo(userId, avatarSize as any);
         } catch (error: any) {
             // Keep the Zalo error code (ZaloApiError.code) so the caller can classify session expiry / rate limits.
             const wrapped: any = new Error(error?.message || error);
