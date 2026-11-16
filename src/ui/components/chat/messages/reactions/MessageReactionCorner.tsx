@@ -114,11 +114,13 @@ export interface MessageReactionCornerProps {
    * (they sit on the right of the chat), so it covers neither the chips inside the message nor the time.
    */
   placement?: 'corner' | 'time';
+  /** Tooltip tên người đã thả (emoji = chip của riêng cảm xúc đó; bỏ trống = chip gộp) */
+  reactorTitle?: (emoji?: string) => string | undefined;
 }
 
 export function MessageReactionCorner({
   isSent, counts, myEmoji, variant, hideCounts, pickerOpen, pickerEmojis, onArm, onLeave, onOpenPicker, onPick, onShowReactors,
-  quickEmoji, onQuick, placement = 'corner',
+  quickEmoji, onQuick, placement = 'corner', reactorTitle,
 }: MessageReactionCornerProps) {
   const entries = Object.entries(counts).filter(([, count]) => count > 0).sort((a, b) => b[1] - a[1]);
   const atTime = placement === 'time';
@@ -156,6 +158,7 @@ export function MessageReactionCorner({
             <button
               key={emoji}
               type="button"
+              title={reactorTitle?.(emoji)}
               onClick={() => onShowReactors(emoji)}
               className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs shadow-sm transition-colors ${
                 myEmoji === emoji
@@ -171,6 +174,7 @@ export function MessageReactionCorner({
       ) : showCounts ? (
         <button
           type="button"
+          title={reactorTitle?.()}
           onClick={() => onShowReactors('all')}
           className="flex items-center gap-0.5 bg-primary/10 hover:bg-primary/20 border border-primary rounded-full px-1.5 py-0.5 text-xs shadow-sm select-none transition-colors"
         >

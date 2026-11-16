@@ -111,7 +111,7 @@ export default function ChatWindow() {
   } = useMessageGrouping(msgs);
   const {
     contactMap, getContact, groupMembers, getGroupMember, erpSourceOf, isGroupAdmin, resolveQuoteAuthor, resolveStarSender,
-  } = useSenderDirectory({ contactList, threadGroupInfo, activeAccountId, activeThreadId, activeContact, allAccounts, findMsgById });
+  } = useSenderDirectory({ contactList, threadGroupInfo, activeAccountId, activeThreadId, activeContact, allAccounts, findMsgById, msgs });
 
   // ─── Conversation lifecycle, loading older messages, stick to bottom / keep scroll position ─────────────────────────────────────────────────────
   useThreadLifecycle(list, {
