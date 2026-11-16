@@ -12,6 +12,7 @@
  * rows received so far). Shows "Không tải được - Thử lại" (Failed to load, retry) (retries with backoff / when scrolled to the end / on reconnect);
  * the preview keeps the tiles already shown. The image viewer opens through the paged collection (MediaGalleryViewer), as in the chat frame.
  */
+import { fileTypeIconSrc } from '@/lib/chat/fileTypeIcons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAccountStore } from '@/store/accounts/accountStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -875,11 +876,12 @@ function FileRow({ msg }: { msg: any }) {
           if (localPath) ipc.file?.openPath(localPath);
           else if (href) ipc.shell?.openExternal(href);
         }}
+        title={title}
         className="flex items-center gap-2.5 flex-1 min-w-0 text-left"
       >
-        <span className="text-xl flex-shrink-0">{getFileIcon(ext)}</span>
+        <img src={fileTypeIconSrc(title, ext)} alt="" className="w-7 h-7 flex-shrink-0" draggable={false} />
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-foreground truncate font-medium">{title}</p>
+          <p className="text-sm text-foreground line-clamp-2 break-all font-medium" title={title}>{title}</p>
           <p className="text-[11px] text-muted-foreground">{sizeStr && `${sizeStr} · `}{dateStr}</p>
         </div>
       </button>
