@@ -273,6 +273,7 @@ export default function App() {
   const [initializing, setInitializing] = useState(true);
   const [lockEnabled, setLockEnabled] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [autoLockMinutes, setAutoLockMinutes] = useState(0);
   // App locked → hide the Zalo conversations that were opened with a PIN again (ZL-03)
   useEffect(() => { if (isLocked) useAppStore.getState().lockAllHidden(); }, [isLocked]);
   // App locked → do not show message notifications in the app (would reveal content on the lock screen), remove the card on screen
@@ -418,9 +419,14 @@ export default function App() {
   // ─── Lock screen: check status on mount ─────────────────────────────────
   useEffect(() => {
     ipc.lockScreen.status().then(res => {
-      if (res.success && res.enabled) {
-        setLockEnabled(true);
-        setIsLocked(true);
+      if (res.success) {
+        if (res.enabled) {
+          setLockEnabled(true);
+          setIsLocked(true);
+        }
+        if (typeof res.autoLockMinutes === 'number') {
+          setAutoLockMinutes(res.autoLockMinutes);
+        }
       }
     });
   }, []);
@@ -504,14 +510,60 @@ export default function App() {
   // ─── Lock screen: react to enable/disable from Settings ───────────────
   useEffect(() => {
     const handleChanged = (e: Event) => {
-      const enabled = (e as CustomEvent).detail?.enabled ?? false;
-      // Just turned on in Settings: only enable the Ctrl+Shift+L shortcut / lock button, do NOT lock now: locking now would close Settings, so the screen
-      // "Lưu recovery key" (Save recovery key) shown once after enabling (LockScreenSettings) is never seen. The next app launch will ask for the password.
-      setLockEnabled(enabled);
+      const detail = (e as CustomEvent).detail;
+      if (typeof detail?.enabled === 'boolean') {
+        // Just turned on in Settings: only enable the Ctrl+Shift+L shortcut / lock button, do NOT lock now: locking now would close Settings, so the screen
+        // "Lưu recovery key" (Save recovery key) shown once after enabling (LockScreenSettings) is never seen. The next app launch will ask for the password.
+        setLockEnabled(detail.enabled);
+      }
+      if (typeof detail?.autoLockMinutes === 'number') {
+        setAutoLockMinutes(detail.autoLockMinutes);
+      }
     };
     window.addEventListener('lockScreen:changed', handleChanged);
     return () => window.removeEventListener('lockScreen:changed', handleChanged);
   }, []);
+
+  // ─── Lock screen: auto-lock on inactivity ──────────────────────────────
+  useEffect(() => {
+    if (!lockEnabled || isLocked || autoLockMinutes <= 0) return;
+
+    let lastActivityTime = Date.now();
+    const timeoutMs = autoLockMinutes * 60 * 1000;
+    let lastThrottleTime = 0;
+
+    const handleUserActivity = () => {
+      const now = Date.now();
+      if (now - lastActivityTime >= timeoutMs) {
+        setIsLocked(true);
+        return;
+      }
+      if (now - lastThrottleTime > 1000) {
+        lastActivityTime = now;
+        lastThrottleTime = now;
+      }
+    };
+
+    const checkTimeout = () => {
+      if (Date.now() - lastActivityTime >= timeoutMs) {
+        setIsLocked(true);
+      }
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart'] as const;
+    events.forEach(ev => window.addEventListener(ev, handleUserActivity, { passive: true }));
+    window.addEventListener('focus', checkTimeout);
+    document.addEventListener('visibilitychange', checkTimeout);
+
+    const timer = setInterval(checkTimeout, 5000);
+
+    return () => {
+      events.forEach(ev => window.removeEventListener(ev, handleUserActivity));
+      window.removeEventListener('focus', checkTimeout);
+      document.removeEventListener('visibilitychange', checkTimeout);
+      clearInterval(timer);
+    };
+  }, [lockEnabled, isLocked, autoLockMinutes]);
 
   // ─── Account switcher (Ctrl+Tab): global keyboard handler ──────────────
   useEffect(() => {

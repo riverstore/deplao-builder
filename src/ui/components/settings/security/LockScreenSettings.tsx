@@ -5,9 +5,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import ipc from '@/lib/ipc';
 import { cn } from '@/lib/cn';
-import { ChevronDownIcon, HashIcon, KeyIcon, LockIcon, ShieldIcon } from '@/components/common/icons';
+import { ChevronDownIcon, ClockIcon, HashIcon, KeyIcon, LockIcon, ShieldIcon } from '@/components/common/icons';
 import { Button, Input } from '@/components/ui';
-import { Notice, SettingsPage, SettingsSection } from '../settingsUi';
+import { Notice, SettingsPage, SettingsRow, SettingsSection } from '../settingsUi';
 import { tr } from '../../../../shared/i18n';
 
 type Tab = 'security' | 'recovery' | 'disable';
@@ -75,6 +75,7 @@ export default function LockScreenSettings() {
   const [loading, setLoading] = useState(false);
   const [savedRecoveryKey, setSavedRecoveryKey] = useState('');
   const [keySavedConfirm, setKeySavedConfirm] = useState(false);
+  const [autoLockMinutes, setAutoLockMinutes] = useState(0);
   // Recovery key viewing state
   const [recoveryView, setRecoveryView] = useState<'idle' | 'show'>('idle');
 
@@ -83,6 +84,9 @@ export default function LockScreenSettings() {
     ipc.lockScreen.status().then(res => {
       if (res.success) {
         setEnabled(res.enabled);
+        if (typeof res.autoLockMinutes === 'number') {
+          setAutoLockMinutes(res.autoLockMinutes);
+        }
       }
     });
   }, []);
@@ -211,6 +215,22 @@ export default function LockScreenSettings() {
     setSuccess(tr('Đã sao chép mã khôi phục'));
   };
 
+  const handleAutoLockChange = useCallback(async (minutes: number) => {
+    clearMessages();
+    setAutoLockMinutes(minutes);
+    try {
+      const res = await ipc.lockScreen.setAutoLock?.({ minutes });
+      if (res?.success) {
+        window.dispatchEvent(new CustomEvent('lockScreen:changed', { detail: { enabled: true, autoLockMinutes: minutes } }));
+        setSuccess(minutes > 0 ? tr('Đã đặt tự động khoá sau {{minutes}} phút không hoạt động', { minutes }) : tr('Đã tắt tự động khoá'));
+      } else {
+        setError(res?.error || tr('Lỗi lưu cài đặt tự động khoá'));
+      }
+    } catch {
+      setError(tr('Lỗi kết nối'));
+    }
+  }, []);
+
   /** Open / close a row; only one row is open at a time. Switching rows clears the password field and the notice. */
   const toggleLine = (id: Tab) => {
     setTab(prev => (prev === id ? null : id));
@@ -318,6 +338,33 @@ export default function LockScreenSettings() {
           </div>
           <StatusPill on />
         </div>
+
+        <SettingsRow
+          title={
+            <span className="flex items-center gap-2">
+              <ClockIcon className="h-4 w-4 text-muted-foreground" />
+              {tr('Tự động khoá khi không hoạt động')}
+            </span>
+          }
+          description={tr('Khoá giao diện sau một khoảng thời gian nếu không có thao tác trên ứng dụng.')}
+          control={
+            <select
+              value={autoLockMinutes}
+              onChange={e => void handleAutoLockChange(Number(e.target.value))}
+              aria-label={tr('Thời gian tự động khoá')}
+              className="rounded-lg border border-border/80 bg-background px-3 py-1.5 text-xs text-foreground focus:border-primary focus:outline-none"
+            >
+              <option value={0}>{tr('Không bao giờ (Tắt)')}</option>
+              <option value={1}>{tr('Sau 1 phút')}</option>
+              <option value={2}>{tr('Sau 2 phút')}</option>
+              <option value={5}>{tr('Sau 5 phút')}</option>
+              <option value={10}>{tr('Sau 10 phút')}</option>
+              <option value={15}>{tr('Sau 15 phút')}</option>
+              <option value={30}>{tr('Sau 30 phút')}</option>
+              <option value={60}>{tr('Sau 1 giờ')}</option>
+            </select>
+          }
+        />
 
         <ExpandLine icon={<KeyIcon className="h-4 w-4" />} title={tr('Đổi mật khẩu')} description={tr('Cần mật khẩu hiện tại.')}
           open={tab === 'security'} onToggle={() => toggleLine('security')}>

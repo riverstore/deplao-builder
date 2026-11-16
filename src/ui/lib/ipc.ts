@@ -790,8 +790,9 @@ declare global {
       /** UI language (main: electron/ipc/i18n/i18nIpc.ts, catalogs in resources/locales) */
       i18n?: { getLanguages: () => Promise<{ current: string; languages: Array<{ code: string; name: string; english: string; coverage: number }> }>; setLanguage: (lang: string) => Promise<{ success: boolean; lang?: string; error?: string }> };
       lockScreen: {
-        status: () => Promise<{ success: boolean; enabled?: boolean; biometricEnabled?: boolean; biometricAvailable?: boolean; failedAttempts?: number; isCoolingDown?: boolean; remainingCooldown?: number; error?: string }>;
+        status: () => Promise<{ success: boolean; enabled?: boolean; autoLockMinutes?: number; biometricEnabled?: boolean; biometricAvailable?: boolean; failedAttempts?: number; isCoolingDown?: boolean; remainingCooldown?: number; error?: string }>;
         setup: (params: { password: string }) => Promise<{ success: boolean; recoveryKey?: string; error?: string }>;
+        setAutoLock?: (params: { minutes: number }) => Promise<{ success: boolean; autoLockMinutes?: number; error?: string }>;
         verify: (params: { password: string }) => Promise<{ success: boolean; error?: string; cooldownRemaining?: number; failedAttempts?: number }>;
         verifyRecovery: (params: { recoveryKey: string }) => Promise<{ success: boolean; error?: string }>;
         changePassword: (params: { oldPassword: string; newPassword: string }) => Promise<{ success: boolean; error?: string }>;
