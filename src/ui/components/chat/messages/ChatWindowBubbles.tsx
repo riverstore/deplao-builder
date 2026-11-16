@@ -1910,15 +1910,13 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
             remoteUrl = att?.url || att?.href || att?.thumb || '';
         }
     }
-    }
 
     const isVideoTile = ['video', 'chat.video.msg', 'gif'].includes(String(msg.msg_type || '').toLowerCase());
     // Zalo media has expired: only the local copy is left (if any), do not call the CDN any more
     const mediaExpired = isMediaExpired(msg);
 
-    const effectiveLocalUrl = repairedLocalUrl || localUrl;
     // Remote-first: CDN shows immediately; switch to local once the file is downloaded
-    const displayUrl = mediaExpired ? effectiveLocalUrl : (useLocal ? (effectiveLocalUrl || remoteUrl) : (remoteUrl || effectiveLocalUrl));
+    const displayUrl = mediaExpired ? localUrl : (useLocal ? (localUrl || remoteUrl) : (remoteUrl || localUrl));
     const viewUrl = mediaExpired ? displayUrl : (remoteUrl || displayUrl);
 
     const telegramRepair = useTelegramMediaRepair(msg, !displayUrl);
@@ -1994,7 +1992,7 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
                 type="button"
                 onClick={() => void telegramRepair.requestRepair('manual_retry', true)}
                 disabled={!isTelegramUser(msg.channel) || telegramRepair.repairing}
-                title={isTelegramUser(msg.channel) ? 'Tải lại ảnh Telegram này' : undefined}
+                title={isTelegramUser(msg.channel) ? tr('Tải lại ảnh Telegram này') : undefined}
                 className={`${tileHeightClass} flex-1 min-w-0 bg-foreground/5 flex flex-col gap-1 items-center justify-center text-muted-foreground select-none p-1 disabled:opacity-40 disabled:cursor-not-allowed`}
             >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30">
@@ -2003,32 +2001,14 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
                     <polyline points="21 15 16 10 5 21" />
                     <line x1="2" y1="2" x2="22" y2="22" />
                 </svg>
-                {isRepairing && <span className="text-[10px] opacity-60">{tr('Đang tải lại...')}</span>}
-                {!isRepairing && (canRetryTelegram || canRetryZalo) && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (canRetryTelegram) void telegramRepair.requestRepair('manual_retry', true);
-                            else if (canRetryZalo) void requestZaloRepair(true);
-                        }}
-                        className="text-[10px] text-blue-400 hover:underline cursor-pointer">
-                        {tr('Thử tải lại')}
-                    </button>
+                {telegramRepair.repairing ? (
+                    <span className="text-[10px] opacity-60">{tr('Đang tải lại...')}</span>
+                ) : isTelegramUser(msg.channel) ? (
+                    <span className="text-[10px] text-blue-400 hover:underline">{tr('Thử tải lại')}</span>
+                ) : (
+                    <span className="text-[10px] opacity-40">{tr('Không tải được ảnh')}</span>
                 )}
-                {remoteUrl && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            ipc.shell?.openExternal(remoteUrl);
-                        }}
-                        title={remoteUrl}
-                        className="text-[9px] text-muted-foreground hover:text-foreground hover:underline truncate max-w-full px-1">
-                        {tr('Mở link ảnh')}
-                    </button>
-                )}
-            </div>
+            </button>
         );
     }
     const handleClick = (e: React.MouseEvent) => {

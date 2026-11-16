@@ -1037,7 +1037,6 @@ export default function MessageInput() {
   };
 
   // ── Nhận file kéo thả: vùng chat gửi ngay (instant: true), ô soạn tin đưa vào chờ (instant: false) ──
->>>>>>> 61d8284 (feat(chat): phan vung keo tha gui ngay va cho gui dinh kem)
   useEffect(() => {
     const handleDragDropFiles = async (e: Event) => {
       const customEv = e as CustomEvent<Partial<DropPayload> & { instant?: boolean }>;

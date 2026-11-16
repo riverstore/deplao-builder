@@ -515,7 +515,6 @@ export default function MediaViewer({
               className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer disabled:opacity-30 disabled:pointer-events-none">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="pointer-events-none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
-            </button>
             {/* Fit to screen */}
             <button onClick={handleFitToScreen}
               title="Vừa khít màn hình (0)"
@@ -533,7 +532,6 @@ export default function MediaViewer({
               <span className="text-[11px] font-bold tracking-tight pointer-events-none">1:1</span>
             </button>
             <div className="w-px h-5 bg-white/20 mx-1" />
-            {/* Copy image (straight to the clipboard) */}
             {/* Copy image (straight to the clipboard) */}
             <button onClick={handleCopyImage} title={tr('Copy hình ảnh')}
               style={{ WebkitAppRegion: 'no-drag' } as any}
@@ -584,7 +582,6 @@ export default function MediaViewer({
               style={{ WebkitAppRegion: 'no-drag' } as any}
               className="w-8 h-8 rounded-lg bg-white/10 hover:bg-red-600/80 flex items-center justify-center text-white/80 hover:text-white transition-colors cursor-pointer">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" className="pointer-events-none"><line x1="1" y1="1" x2="11" y2="11"/><line x1="11" y1="1" x2="1" y2="11"/></svg>
-            </button>
             </button>
           </div>
         </div>
@@ -810,7 +807,6 @@ export default function MediaViewer({
           )}
         </div>
 
-        {/* Bottom hint */}
         {/* Bottom hint */}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-white/40 text-xs pointer-events-none">
           {zoomLevel <= 1.05 ? tr('Cuộn để phóng to · Double-click để phóng 2x') : tr('Double-click để reset · Kéo để di chuyển')}
