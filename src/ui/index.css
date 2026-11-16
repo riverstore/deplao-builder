@@ -192,6 +192,14 @@ html[data-theme="dark"][data-palette="amoled"] {
   --sidebar-hover: 20 20 20;
 }
 
+/* Phông chữ tự chọn (Google Fonts, App.tsx chèn @font-face) và cỡ chữ riêng của tin nhắn */
+html[data-custom-font="true"] body {
+  font-family: var(--app-font-family), -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.chat-msg-text {
+  font-size: var(--chat-font-size, inherit);
+}
+
 @layer base {
   * {
     box-sizing: border-box;
