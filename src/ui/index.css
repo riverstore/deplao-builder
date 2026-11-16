@@ -127,6 +127,71 @@ html[data-theme="light"] {
   --color-sidebar-hover: rgb(var(--sidebar-hover));
 }
 
+/* ═══ Bảng màu (html[data-palette]) ═════════════════════════════════════════
+   Chỉ ghi đè màu nhấn (primary, bong bóng gửi đi, hàng đang chọn, ô sidebar);
+   không có data-palette = Xanh dương mặc định ở trên. Đen tuyền chỉ áp cho giao diện Tối. */
+html[data-theme="dark"][data-palette="green"] {
+  --primary: 32 168 104;           /* #20a868 */
+  --primary-hover: 52 190 124;     /* #34be7c */
+  --info: 110 210 160;             /* #6ed2a0 */
+  --ring: 32 168 104;
+  --bubble-out: 22 78 54;          /* #164e36 */
+  --bubble-out-border: 34 102 72;  /* #226648 */
+  --selected: 24 56 44;            /* #18382c */
+  --sidebar-active: 32 168 104;
+}
+html[data-theme="light"][data-palette="green"] {
+  --primary: 22 142 84;            /* #168e54 */
+  --primary-hover: 16 118 70;      /* #107646 */
+  --info: 18 128 76;               /* #12804c */
+  --ring: 22 142 84;
+  --bubble-out: 223 244 232;       /* #dff4e8 */
+  --bubble-out-border: 188 228 205;/* #bce4cd */
+  --selected: 223 244 232;
+  --sidebar: 236 246 240;          /* #ecf6f0 */
+  --sidebar-hover: 222 238 229;    /* #deeee5 */
+  --sidebar-active: 22 142 84;
+}
+html[data-theme="dark"][data-palette="purple"] {
+  --primary: 139 92 246;           /* #8b5cf6 */
+  --primary-hover: 160 120 250;    /* #a078fa */
+  --info: 180 156 255;             /* #b49cff */
+  --ring: 139 92 246;
+  --bubble-out: 58 40 110;         /* #3a286e */
+  --bubble-out-border: 78 56 140;  /* #4e388c */
+  --selected: 44 34 78;            /* #2c224e */
+  --sidebar-active: 139 92 246;
+}
+html[data-theme="light"][data-palette="purple"] {
+  --primary: 124 58 237;           /* #7c3aed */
+  --primary-hover: 106 40 214;     /* #6a28d6 */
+  --info: 109 40 217;              /* #6d28d9 */
+  --ring: 124 58 237;
+  --bubble-out: 238 232 253;       /* #eee8fd */
+  --bubble-out-border: 220 208 250;/* #dcd0fa */
+  --selected: 238 232 253;
+  --sidebar: 243 240 251;          /* #f3f0fb */
+  --sidebar-hover: 234 228 248;    /* #eae4f8 */
+  --sidebar-active: 124 58 237;
+}
+html[data-theme="dark"][data-palette="amoled"] {
+  --background: 0 0 0;             /* đen tuyền: tiết kiệm pin màn OLED */
+  --card: 10 10 10;                /* #0a0a0a */
+  --popover: 20 20 20;             /* #141414 */
+  --muted: 26 26 26;               /* #1a1a1a */
+  --accent: 40 40 40;              /* #282828 */
+  --border: 30 30 30;              /* #1e1e1e */
+  --input: 46 46 46;               /* #2e2e2e */
+  --border-strong: 64 64 64;       /* #404040 */
+  --bubble-in: 24 24 24;           /* #181818 */
+  --bubble-in-border: 38 38 38;    /* #262626 */
+  --bubble-out: 20 48 92;          /* #14305c */
+  --bubble-out-border: 30 64 118;  /* #1e4076 */
+  --selected: 18 32 58;            /* #12203a */
+  --sidebar: 0 0 0;
+  --sidebar-hover: 20 20 20;
+}
+
 @layer base {
   * {
     box-sizing: border-box;

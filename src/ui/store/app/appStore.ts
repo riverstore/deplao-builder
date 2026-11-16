@@ -14,6 +14,10 @@ import { tr } from '../../../shared/i18n';
 
 type AppView = 'chat' | 'friends' | 'settings' | 'dashboard' | 'crm' | 'workflow' | 'integration' | 'analytics' | 'erp' | 'plugin';
 export type AppTheme = 'dark' | 'light';
+/** Lựa chọn của người dùng; 'system' theo chế độ sáng/tối của hệ điều hành */
+export type AppThemeMode = AppTheme | 'system';
+export type AppPalette = 'blue' | 'green' | 'purple' | 'amoled';
+export const APP_PALETTES: AppPalette[] = ['blue', 'green', 'purple', 'amoled'];
 
 export interface GroupMember {
   userId: string;
@@ -158,8 +162,16 @@ interface AppStore {
   /** Accounts that have unlocked hidden conversations (correct PIN entered): zaloId → unlock time (ms), this machine only */
   hiddenUnlocked: Record<string, number>;
 
+  /** Giao diện đang áp dụng (đã quy 'system' về sáng/tối) — component chỉ cần đọc giá trị này */
   theme: AppTheme;
+  /** Chọn hẳn Sáng/Tối (tắt chế độ theo hệ thống) */
   setTheme: (theme: AppTheme) => void;
+  themeMode: AppThemeMode;
+  setThemeMode: (mode: AppThemeMode) => void;
+  /** Gọi khi hệ điều hành đổi sáng/tối; chỉ có tác dụng khi themeMode = 'system' */
+  syncSystemTheme: () => void;
+  palette: AppPalette;
+  setPalette: (palette: AppPalette) => void;
   fontSizeScale: number;
   setFontSizeScale: (scale: number) => void;
 
@@ -316,12 +328,30 @@ const loadFontSizeScale = (): number => {
 };
 
 // ─── theme persists in localStorage ─────────────────────────────────────────
-const loadTheme = (): AppTheme => {
+const loadThemeMode = (): AppThemeMode => {
   try {
     const stored = localStorage.getItem('app_theme');
-    if (stored === 'light' || stored === 'dark') return stored;
+    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored;
   } catch {}
   return 'light';
+};
+
+const systemTheme = (): AppTheme => {
+  try {
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  } catch {
+    return 'light';
+  }
+};
+
+const resolveTheme = (mode: AppThemeMode): AppTheme => (mode === 'system' ? systemTheme() : mode);
+
+const loadPalette = (): AppPalette => {
+  try {
+    const stored = localStorage.getItem('app_palette') as AppPalette | null;
+    if (stored && APP_PALETTES.includes(stored)) return stored;
+  } catch {}
+  return 'blue';
 };
 
 // ─── notifSettings persists in localStorage (not account-specific) ──────────
@@ -483,7 +513,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   mutedThreads: {},
   notifSettings: loadNotifSettings(),
   notifSettingsOverrides: loadNotifOverrides(),
-  theme: loadTheme(),
+  themeMode: loadThemeMode(),
+  theme: resolveTheme(loadThemeMode()),
+  palette: loadPalette(),
   fontSizeScale: loadFontSizeScale(),
   groupInfoCache: {},
   othersConversations: {},
@@ -842,7 +874,23 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setTheme: (theme) => {
     try { localStorage.setItem('app_theme', theme); } catch {}
-    set({ theme });
+    set({ theme, themeMode: theme });
+  },
+
+  setThemeMode: (mode) => {
+    try { localStorage.setItem('app_theme', mode); } catch {}
+    set({ themeMode: mode, theme: resolveTheme(mode) });
+  },
+
+  syncSystemTheme: () => {
+    if (get().themeMode !== 'system') return;
+    const theme = systemTheme();
+    if (theme !== get().theme) set({ theme });
+  },
+
+  setPalette: (palette) => {
+    try { localStorage.setItem('app_palette', palette); } catch {}
+    set({ palette });
   },
 
   setFontSizeScale: (scale) => {
