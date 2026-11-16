@@ -105,22 +105,82 @@ export const COLOR_EMOJI_TEXT_FONT =
 /** Pre-sort các keys theo độ dài giảm dần một lần duy nhất để tối ưu hiệu năng */
 const SORTED_ZALO_CODES = Object.keys(ZALO_CODE_TO_EMOJI).sort((a, b) => b.length - a.length);
 
+/** Regex bảo vệ: URL (http/https/ftp/custom scheme), link www, email, Windows file path (C:\...), domain links */
+const PROTECTED_TEXT_REGEX = /(?:https?:\/\/[^\s<>"]+|[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s<>"]+|www\.[^\s<>"]+|[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[a-zA-Z]:\\[^\s<>"]+|[a-zA-Z0-9._-]+\.(?:com|vn|net|org|io|dev|app|me|co|xyz|info|tv|gg|link|page|site|online|tech|store|fun|icu|top|cc|pw|tk|ml|ga|cf|gq)(?:\/[^\s<>"]*)?)/gi;
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Xây dựng Regex một lần duy nhất với các điều kiện ranh giới chặt chẽ:
+ * 1. Phía trước code: Không được là chữ cái, số, hoặc gạch dưới (?<![a-zA-Z0-9_])
+ *    -> Ngăn chặn dính vào scheme link (https://), ổ đĩa Windows (D:\), hoặc từ (Note:demo)
+ * 2. Phía sau code:
+ *    - Nếu code kết thúc bằng chữ cái/số (:d, :p, :o, :h, :x, :3, b), 8)...) -> (?![a-zA-Z0-9_])
+ *      -> Ngăn chặn biến từ (:dog, :phone) thành emoji
+ *    - Nếu code kết thúc bằng / (:/, :-/) -> (?![/])
+ *      -> Ngăn chặn biến :// trong URL thành emoji
+ *    - Nếu code kết thúc bằng \ (:\, :-\) -> (?![\\\\])
+ */
+const EMOJI_PATTERNS = SORTED_ZALO_CODES.map((code) => {
+  const escaped = escapeRegex(code);
+  const lastChar = code[code.length - 1];
+
+  let lookahead = '';
+  if (/[a-zA-Z0-9]/.test(lastChar)) {
+    lookahead = '(?![a-zA-Z0-9_])';
+  } else if (code.endsWith('/')) {
+    lookahead = '(?![/])';
+  } else if (code.endsWith('\\')) {
+    lookahead = '(?![\\\\])';
+  }
+
+  const lookbehind = '(?<![a-zA-Z0-9_])';
+  return `(?:${lookbehind}${escaped}${lookahead})`;
+});
+
+const EMOJI_REGEX = new RegExp(EMOJI_PATTERNS.join('|'), 'g');
+
+function convertPlainTextSegment(segment: string): string {
+  EMOJI_REGEX.lastIndex = 0;
+  return segment.replace(EMOJI_REGEX, (matched) => ZALO_CODE_TO_EMOJI[matched] ?? matched);
+}
+
 /** Chuyển đổi Zalo reaction code → Unicode emoji (dùng cho display) */
 export function zaloCodeToEmoji(code: string): string {
   return ZALO_CODE_TO_EMOJI[code] ?? code;
 }
 
-/** Replaces all Zalo codes in the text with Unicode emoji */
+/** Thay thế tất cả Zalo codes trong text bằng Unicode emoji (bảo vệ tuyệt đối URL, Email, File path) */
 export function convertZaloEmojis(text: string): string {
   if (!text) return text;
   const direct = ZALO_CODE_TO_EMOJI[text];
   if (direct) return direct;
-  let result = text;
-  for (const code of SORTED_ZALO_CODES) {
-    if (result.includes(code)) {
-      result = result.split(code).join(ZALO_CODE_TO_EMOJI[code]);
+
+  // Nếu trong text không có bất kỳ ký tự trigger nào (: / - < = ; b B 8 | p P $ & ^ _)
+  // thì bỏ qua luôn để đạt hiệu năng tối đa (fast path)
+  if (!/[:/=<;bB8|pP$&^_]/.test(text)) return text;
+
+  // Tách các đoạn được bảo vệ (URL, email, Windows path) để giữ nguyên vẹn 100%
+  PROTECTED_TEXT_REGEX.lastIndex = 0;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let result = '';
+
+  while ((match = PROTECTED_TEXT_REGEX.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      result += convertPlainTextSegment(text.slice(lastIndex, match.index));
     }
+    // Giữ nguyên đoạn được bảo vệ
+    result += match[0];
+    lastIndex = match.index + match[0].length;
   }
+
+  if (lastIndex < text.length) {
+    result += convertPlainTextSegment(text.slice(lastIndex));
+  }
+
   return result;
 }
 

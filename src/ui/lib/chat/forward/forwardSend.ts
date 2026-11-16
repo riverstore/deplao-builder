@@ -85,13 +85,14 @@ const FORWARD_DOWNLOAD_KINDS: Partial<Record<ForwardKind, 'image' | 'gif' | 'fil
  * Local file used to re-send media. Not downloaded yet (message synced from the phone, old message...) → the main process downloads it from the CDN link
  * in content (Zalo messages only), then updates local_paths so the bubble shows "đã có trên máy" (already on this machine).
  */
-async function ensureForwardLocalPath(msg: any, kind: ForwardKind): Promise<string> {
+async function ensureForwardLocalPath(msg: any, kind: ForwardKind, fallbackAccountId?: string): Promise<string> {
   const existing = getForwardLocalPath(msg, kind);
   if (existing) return existing;
   const downloadKind = FORWARD_DOWNLOAD_KINDS[kind];
-  if (!downloadKind || !isZalo(msg.channel) || !msg.owner_zalo_id || !msg.msg_id) return '';
+  const zaloId = String(msg.owner_zalo_id || fallbackAccountId || '');
+  if (!downloadKind || !isZalo(msg.channel) || !zaloId || !msg.msg_id) return '';
   const res = await ipc.file?.downloadMessageMedia?.({
-    zaloId: String(msg.owner_zalo_id),
+    zaloId,
     msgId: String(msg.msg_id),
     threadId: msg.thread_id ? String(msg.thread_id) : undefined,
     kind: downloadKind,
@@ -101,7 +102,7 @@ async function ensureForwardLocalPath(msg: any, kind: ForwardKind): Promise<stri
     return '';
   }
   if (res.localPaths && msg.thread_id) {
-    useChatStore.getState().updateMessageLocalPath(String(msg.owner_zalo_id), String(msg.thread_id), String(msg.msg_id), res.localPaths);
+    useChatStore.getState().updateMessageLocalPath(zaloId, String(msg.thread_id), String(msg.msg_id), res.localPaths);
   }
   return res.localPath;
 }
@@ -171,13 +172,13 @@ export function mergeForwardPhotoUnits(units: any[][], channel?: string): any[][
  * Local files of the album when it can be sent as one batch: the target is Zalo / Telegram, every message is a photo, and each has
  * (or can download) a JPG/PNG/WebP file (formats both album APIs accept). Otherwise null → send each message separately.
  */
-async function prepareForwardAlbum(unit: any[], channel?: string): Promise<string[] | null> {
+async function prepareForwardAlbum(unit: any[], channel?: string, fallbackAccountId?: string): Promise<string[] | null> {
   if (unit.length < 2) return null;
   if (!isZaloForwardTarget(channel) && !isTelegramForwardTarget(channel)) return null;
   if (!unit.every(m => getForwardPlan(m).kind === 'image')) return null;
   const paths: string[] = [];
   for (const m of unit) {
-    const filePath = await ensureForwardLocalPath(m, 'image');
+    const filePath = await ensureForwardLocalPath(m, 'image', fallbackAccountId);
     if (!FORWARD_ALBUM_FILE_RE.test(filePath)) return null;
     paths.push(filePath);
   }
@@ -292,11 +293,12 @@ async function sendZaloVideoForward(auth: any, msg: any, localPath: string, targ
  * Voice message to Zalo: sendVoice (sendFile produces a .m4a file message). Reuses the original m4a link like a video (zca-js sendVoice
  * is the "forward" msgType 3 API); expired link / send error → upload the file again. Returns false if there is neither a link nor a file.
  */
-async function sendZaloVoiceForward(auth: any, msg: any, target: ForwardTarget): Promise<boolean> {
+async function sendZaloVoiceForward(auth: any, msg: any, target: ForwardTarget, fallbackAccountId?: string): Promise<boolean> {
   const voiceUrl = isZalo(msg.channel) ? getZaloVoiceUrl(msg) : '';
+  const zaloId = String(msg.owner_zalo_id || fallbackAccountId || '');
   if (voiceUrl && !msg.media_expired) {
-    const check = msg.owner_zalo_id && msg.msg_id
-      ? await ipc.file?.checkMediaExpired({ zaloId: String(msg.owner_zalo_id), msgId: String(msg.msg_id), urls: [voiceUrl] }).catch(() => null)
+    const check = zaloId && msg.msg_id
+      ? await ipc.file?.checkMediaExpired({ zaloId, msgId: String(msg.msg_id), urls: [voiceUrl] }).catch(() => null)
       : null;
     if (!check?.expired) {
       const result = await ipc.zalo?.sendVoice({ auth, options: { voiceUrl }, threadId: target.threadId, type: target.threadType });
@@ -305,7 +307,7 @@ async function sendZaloVoiceForward(auth: any, msg: any, target: ForwardTarget):
       console.warn('[Forward] Gửi tin thoại bằng link gốc lỗi → tải file lên lại:', result?.error);
     }
   }
-  const localPath = await ensureForwardLocalPath(msg, 'voice');
+  const localPath = await ensureForwardLocalPath(msg, 'voice', fallbackAccountId);
   if (!localPath) return false;
   const uploadRes = await ipc.zalo?.uploadVoiceFile?.({ auth, voicePath: localPath, threadId: target.threadId, type: target.threadType });
   const resp = uploadRes?.response;
@@ -407,10 +409,10 @@ export async function sendOneForward(
     if (caption) await sendForwardText(auth, channel, accountId, target, caption);
     return;
   }
-  if (kind === 'voice' && toZalo && await sendZaloVoiceForward(auth, msg, target)) return;
+  if (kind === 'voice' && toZalo && await sendZaloVoiceForward(auth, msg, target, sourceAccountId)) return;
 
-  // Other media: re-sent from the local file (downloaded first if missing) so it can move between accounts / channels.
-  const localPath = await ensureForwardLocalPath(msg, kind);
+  // Media còn lại: gửi lại từ file local (tải về nếu chưa có) để chuyển được giữa các tài khoản / kênh.
+  const localPath = await ensureForwardLocalPath(msg, kind, sourceAccountId);
   if (localPath) {
     if (!toZalo) {
       if (!accountId) throw new Error(tr('Không tìm thấy tài khoản gửi'));
@@ -520,8 +522,8 @@ export function runForwardJob(
       const units = mergeForwardPhotoUnits(baseUnits, targetChannel);
 
       for (const unit of units) {
-        // All-photo album (downloaded first if missing) → sent in one batch so the recipient also sees an album.
-        const albumPaths = await prepareForwardAlbum(unit, targetChannel);
+        // Album toàn ảnh (tải về nếu chưa có) → gửi gộp 1 lần để người nhận cũng thấy album.
+        const albumPaths = await prepareForwardAlbum(unit, targetChannel, ctx.sourceAccountId || undefined);
         if (albumPaths) {
           let albumDone = true;
           try {

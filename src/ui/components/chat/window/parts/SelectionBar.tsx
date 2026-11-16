@@ -31,7 +31,7 @@ export function SelectionBar({ channelCap, erpAccess, msgs, selectedMsgIds, setE
       <div className="flex items-center gap-1.5">
         <button onClick={() => {
           // Copy selected text messages
-          const selectedMsgs = msgs.filter(m => selectedMsgIds.has(m.msg_id));
+          const selectedMsgs = msgs.filter(m => selectedMsgIds.has(String(m.msg_id)) || selectedMsgIds.has(m.msg_id));
           const texts = selectedMsgs.map(m => extractMsgText(m)).filter(t => t && t !== '[Tin nhắn]');
           if (texts.length > 0) {
             navigator.clipboard.writeText(texts.join('\n'));
@@ -48,7 +48,7 @@ export function SelectionBar({ channelCap, erpAccess, msgs, selectedMsgIds, setE
             / one note */}
         {(['task', 'event', 'note'] as const).filter(kind => erpAccess[kind]).map(kind => (
           <button key={kind} onClick={() => {
-            const selectedMsgs = msgs.filter(m => selectedMsgIds.has(m.msg_id))
+            const selectedMsgs = msgs.filter(m => selectedMsgIds.has(String(m.msg_id)) || selectedMsgIds.has(m.msg_id))
               .sort((a, b) => (Number(a.timestamp) || 0) - (Number(b.timestamp) || 0));
             const hasText = selectedMsgs.some(m => { const t = extractMsgText(m); return t && t !== '[Tin nhắn]'; });
             // The task takes the message's photos too
@@ -65,10 +65,10 @@ export function SelectionBar({ channelCap, erpAccess, msgs, selectedMsgIds, setE
             {kind === 'task' ? tr('Tạo task') : kind === 'event' ? tr('Thêm vào lịch') : tr('Lưu ghi chú')}
           </button>
         ))}
-        {msgs.some(m => selectedMsgIds.has(m.msg_id) && getSaveItem(m)) && (
+        {msgs.some(m => (selectedMsgIds.has(String(m.msg_id)) || selectedMsgIds.has(m.msg_id)) && getSaveItem(m)) && (
           <button onClick={() => {
             // Tải mọi ảnh / video / file trong các tin đã chọn vào một thư mục
-            void saveMessagesToFolder(msgs.filter(m => selectedMsgIds.has(m.msg_id)), showNotification);
+            void saveMessagesToFolder(msgs.filter(m => selectedMsgIds.has(String(m.msg_id)) || selectedMsgIds.has(m.msg_id)), showNotification);
           }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted text-foreground/80 hover:text-foreground text-xs transition-colors">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -77,8 +77,8 @@ export function SelectionBar({ channelCap, erpAccess, msgs, selectedMsgIds, setE
         )}
         {channelCap.supportsForward && (
           <button onClick={() => {
-            const selectedMsgs = msgs.filter(m => selectedMsgIds.has(m.msg_id));
-            // Calls, polls, system messages… cannot be forwarded → removed before choosing the recipient
+            const selectedMsgs = msgs.filter(m => selectedMsgIds.has(String(m.msg_id)) || selectedMsgIds.has(m.msg_id));
+            // Cuộc gọi, bình chọn, tin hệ thống… không chuyển tiếp được → bỏ ra trước khi chọn người nhận
             const forwardable = selectedMsgs.filter(m => !getForwardBlockReason(m));
             const skipped = selectedMsgs.length - forwardable.length;
             if (skipped > 0) {

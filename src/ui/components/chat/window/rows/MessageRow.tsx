@@ -217,23 +217,28 @@ export function renderMessageRow(ctx: MessageRowContext, msg: any, idx: number):
     : reactionsShown && hasReactions && !telegramPostMeta && !isTelegramMsg && !isZaloReactions ? ' mb-3' : '';
 
   // Selection state for this message
-  const isMsgSelected = isSelecting && selectedMsgIds.has(msg.msg_id);
+  const isMsgSelected = isSelecting && (selectedMsgIds.has(String(msg.msg_id)) || selectedMsgIds.has(msg.msg_id));
   const isGroupedFirst = !!groupedFirstMsgs[msg.msg_id];
 
   // Toggle selection for this message (and all images in group if applicable)
   const toggleMsgSelect = () => {
     if (!isSelecting) return;
+    const currentId = String(msg.msg_id);
     setSelectedMsgIds(prev => {
       const next = new Set(prev);
       if (isGroupedFirst) {
         // Select/deselect ALL images in the media group
-        const allIds = groupedFirstMsgs[msg.msg_id].map((m: any) => m.msg_id);
+        const allIds = groupedFirstMsgs[msg.msg_id].map((m: any) => String(m.msg_id));
         const allSelected = allIds.every((id: string) => next.has(id));
         if (allSelected) { allIds.forEach((id: string) => next.delete(id)); }
         else { allIds.forEach((id: string) => next.add(id)); }
       } else {
-        if (next.has(msg.msg_id)) next.delete(msg.msg_id);
-        else next.add(msg.msg_id);
+        if (next.has(currentId) || next.has(msg.msg_id)) {
+          next.delete(currentId);
+          next.delete(msg.msg_id);
+        } else {
+          next.add(currentId);
+        }
       }
       return next;
     });
@@ -249,13 +254,19 @@ export function renderMessageRow(ctx: MessageRowContext, msg: any, idx: number):
         e.stopPropagation(); toggleMsgSelect();
       } : undefined}
       onPointerDown={!isEcardMsg ? (e) => {
-        // Do not intercept pointerdown on interactive elements
+        if (e.button !== 0) return;
+        // Không intercept pointerdown trên interactive elements
         const target = e.target as HTMLElement;
         if (target.closest('a, button, img, video, audio, [role="button"], input, textarea, select')) return;
         dragSelectRef.current = {
-          startMsgId: msg.msg_id,
+          isDown: true,
+          startMsgId: String(msg.msg_id),
           startIdx: idx,
+          startX: e.clientX,
+          startY: e.clientY,
           hasActivated: false,
+          startedFromEmptySpace: false,
+          initialSelectedMsgIds: new Set(selectedMsgIds),
         };
       } : undefined}
     >

@@ -16,7 +16,11 @@ export function useFileDrop(activeThreadId: string | null) {
     e.preventDefault();
     e.stopPropagation();
     dragCounterRef.current += 1;
-    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+    // Chỉ kích hoạt overlay khi người dùng thực sự kéo tệp tin (Files) từ máy tính vào,
+    // tránh kích hoạt nhầm khi kéo văn bản hoặc thao tác chuột nội bộ.
+    const types = e.dataTransfer?.types;
+    const hasFiles = types ? Array.from(types).includes('Files') : false;
+    if (hasFiles) {
       setIsDragging(true);
     }
   }, []);
@@ -34,6 +38,11 @@ export function useFileDrop(activeThreadId: string | null) {
   const handleDragOver = React.useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    const types = e.dataTransfer?.types;
+    const hasFiles = types ? Array.from(types).includes('Files') : false;
+    if (!hasFiles && e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'none';
+    }
   }, []);
 
   const handleDrop = React.useCallback((e: React.DragEvent) => {
@@ -41,6 +50,10 @@ export function useFileDrop(activeThreadId: string | null) {
     e.stopPropagation();
     setIsDragging(false);
     dragCounterRef.current = 0;
+
+    const types = e.dataTransfer?.types;
+    const hasFiles = types ? Array.from(types).includes('Files') : false;
+    if (!hasFiles) return;
 
     if (!activeThreadId) return;
     // Đọc ngay trong sự kiện (sau đó dữ liệu kéo bị khoá): file thật, hoặc link ảnh khi kéo từ trang web / app khác.

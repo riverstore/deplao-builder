@@ -220,7 +220,30 @@ export default function ChatWindow() {
       {/* Messages container: always rendered when a thread is active, the skeleton shows inside while loading */}
       {/* Avoids a "double flash" caused by the container mounting / unmounting when switching threads */}
       {activeAccountId && activeThreadId && (
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto [overflow-anchor:auto] relative" style={{ willChange: 'scroll-position' }}>
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto [overflow-anchor:auto] relative"
+        style={{ willChange: 'scroll-position' }}
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          const target = e.target as HTMLElement;
+          // Nếu nhấn trúng một hàng tin nhắn thì MessageRow sẽ tự xử lý
+          if (target.closest?.('[id^="msg-"]')) return;
+          // Bỏ qua các phần tử tương tác (nút cuộn, link, input...)
+          if (target.closest?.('a, button, input, textarea, select, [role="button"]')) return;
+
+          dragSelectRef.current = {
+            isDown: true,
+            startMsgId: null,
+            startIdx: -1,
+            startX: e.clientX,
+            startY: e.clientY,
+            hasActivated: false,
+            startedFromEmptySpace: true,
+            initialSelectedMsgIds: new Set(selectedMsgIds),
+          };
+        }}
+      >
         <StickyDayPill containerRef={messagesContainerRef} />
         {/* "Đang tải..." (Loading...) layer when opening a conversation: z-30, above the reaction chip / 👍 button (z-20), the sticky date label (z-20) and the scroll-down button
             (z-30, earlier in the DOM); below the composer popup (z-30, later in the DOM), the file drop layer (z-40), dialogs (z-50).

@@ -360,10 +360,11 @@ class FileStorageService {
                 // Fall through to download
             }
 
+            const isFbUrl = /^https?:\/\/([a-z0-9-]+\.)*(fbcdn\.net|facebook\.com|messenger\.com)/i.test(url);
             const headers: Record<string, string> = {
                 'User-Agent': userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
                 // Facebook CDN can require facebook.com Referer (403 without it)
-                'Referer': cookiesJson ? 'https://www.facebook.com/' : 'https://chat.zalo.me/',
+                'Referer': isFbUrl ? 'https://www.facebook.com/' : 'https://chat.zalo.me/',
                 // Boss's files (the employee machine) need the employee session token; other URLs get nothing attached
                 ...bossAuthHeaders(url),
             };
@@ -383,7 +384,7 @@ class FileStorageService {
             return this.toRelativePath(localPath);
         } catch (error: any) {
             const status: number | undefined = error?.response?.status;
-            if (status === 409 || status === 403 || status === 401 || status === 410) {
+            if (status === 409 || status === 403 || status === 401 || status === 410 || status === 404) {
                 Logger.warn(`[FileStorageService] Skipping file (HTTP ${status}): ${url}`);
                 return '';
             }
@@ -465,7 +466,7 @@ class FileStorageService {
             return this.toRelativePath(localPath);
         } catch (error: any) {
             const status: number | undefined = error?.response?.status;
-            if (status === 409 || status === 403 || status === 401 || status === 410) {
+            if (status === 409 || status === 403 || status === 401 || status === 410 || status === 404) {
                 Logger.warn(`[FileStorageService] Skipping image (HTTP ${status}): ${imageUrl}`);
                 return '';
             }
@@ -598,7 +599,7 @@ class FileStorageService {
             return this.toRelativePath(localPath);
         } catch (error: any) {
             const status: number | undefined = error?.response?.status;
-            if (status === 409 || status === 403 || status === 401 || status === 410) {
+            if (status === 409 || status === 403 || status === 401 || status === 410 || status === 404) {
                 Logger.warn(`[FileStorageService] Skipping video (HTTP ${status}): ${videoUrl}`);
                 return '';
             }
