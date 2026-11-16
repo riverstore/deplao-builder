@@ -43,9 +43,11 @@ export function useFileDrop(activeThreadId: string | null) {
     dragCounterRef.current = 0;
 
     if (!activeThreadId) return;
-    // Read right inside the event (the drag data is locked afterwards): real files, or a photo link when dragged from a website or another app.
-    // MessageInput handles it (downloads photos from links, sorts photos / videos / files, sends through the queue)
-    window.dispatchEvent(new CustomEvent('chat:dragDropFiles', { detail: readDropPayload(e.dataTransfer) }));
+    // Đọc ngay trong sự kiện (sau đó dữ liệu kéo bị khoá): file thật, hoặc link ảnh khi kéo từ trang web / app khác.
+    // Thả vào vùng nội dung ChatWindow -> gửi luôn ngay lập tức (instant: true)
+    window.dispatchEvent(new CustomEvent('chat:dragDropFiles', {
+      detail: { ...readDropPayload(e.dataTransfer), instant: true },
+    }));
   }, [activeThreadId]);
 
   return { isDragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop };
