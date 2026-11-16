@@ -23,6 +23,7 @@ import { useZaloFriendOnlines } from '@/hooks/zalo/useZaloFriendOnlines';
 import { ZALO_FRIEND_ONLINES_ENABLED } from '../../../../shared/zalo/zaloPresence';
 import { showZaloPinDialog } from '../zalo/hidden/ZaloHiddenPinDialog';
 import { setZaloConversationHidden, tryUnlockHiddenFromSearch, useHiddenAutoRelock } from '@/hooks/zalo/useZaloHidden';
+import { getSearchTokens, matchesSearchTokens } from '../../../../shared/chat/searchFold';
 import type { OpenQuickConversation } from '../quick/quickActions';
 import { showConfirm } from '../../common/ConfirmDialog';
 import LabelPicker, { EditLabelsModal } from './LabelPicker';
@@ -428,12 +429,12 @@ export default function ConversationList() {
     if (filter === 'unread') {
       const accountIds = mergedInboxMode ? mergedInboxAccounts : (activeAccountId ? [activeAccountId] : []);
       const existing = new Set(withLive.map(c => `${c.owner_zalo_id || activeAccountId}_${c.contact_id}`));
-      const q = search.trim().toLowerCase();
+      const tokens = getSearchTokens(search);
       for (const zaloId of accountIds) {
         for (const c of contacts[zaloId] || []) {
           if (!(c.unread_count > 0) || existing.has(`${zaloId}_${c.contact_id}`)) continue;
           if (channelFilter !== 'all' && (c.channel || 'zalo') !== channelFilter) continue;
-          if (q && ![c.display_name, c.alias, c.contact_id, c.phone].some(v => String(v || '').toLowerCase().includes(q))) continue;
+          if (tokens.length > 0 && !matchesSearchTokens([c.display_name, c.alias, c.contact_id, c.phone], tokens)) continue;
           withLive.push({ ...c, owner_zalo_id: c.owner_zalo_id || zaloId });
         }
       }
@@ -1508,7 +1509,7 @@ export default function ConversationList() {
     // Type exactly the 4-digit PIN → unlock the Zalo hidden conversations (ZL-03); a wrong PIN is still a normal search (no message)
     if (/^\d{4}$/.test(value.trim())) {
       void tryUnlockHiddenFromSearch(value, mergedInboxMode ? mergedInboxAccounts : [activeAccountId]).then((ok) => {
-        if (!ok || (searchInputRef.current?.value || '').trim() !== value.trim()) return;
+        if (!ok) return;
         setSearch(''); clearPhoneSearch(); setSearchPanelOpen(false); searchInputRef.current?.blur();
       });
     }

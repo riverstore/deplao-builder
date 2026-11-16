@@ -107,7 +107,12 @@ function imageRepairDeps(threadIdHint: string | undefined, emitLocalPath: ImageR
         messageInfo: (zaloId, msgId) => {
             const info = { localPath: '', threadId: '', imageUrl: '', msgType: '', channel: '' };
             try {
-                const row: any = db.getMessageById(zaloId, msgId, threadIdHint || undefined);
+                let row: any = db.getMessageById(zaloId, msgId, threadIdHint || undefined);
+                if (!row) {
+                    try {
+                        row = (db as any).queryOne?.('SELECT * FROM messages WHERE msg_id = ? ORDER BY id DESC LIMIT 1', [String(msgId)]);
+                    } catch {}
+                }
                 if (!row) return info;
                 info.threadId = String(row.thread_id || '');
                 info.msgType = String(row.msg_type || '');
@@ -120,6 +125,14 @@ function imageRepairDeps(threadIdHint: string | undefined, emitLocalPath: ImageR
                     const contentRaw = typeof row.content === 'string' ? JSON.parse(row.content) : row.content;
                     info.imageUrl = DatabaseService.extractImageUrlFromContent(contentRaw) || '';
                 } catch { /* content is not JSON */ }
+                if (!info.imageUrl) {
+                    try {
+                        const atts = typeof row.attachments === 'string' ? JSON.parse(row.attachments) : row.attachments;
+                        if (Array.isArray(atts) && atts[0]) {
+                            info.imageUrl = DatabaseService.extractImageUrlFromContent(atts[0]) || atts[0]?.url || atts[0]?.href || '';
+                        }
+                    } catch { /* attachments không phải JSON */ }
+                }
             } catch (e: any) {
                 Logger.warn(`[fileIpc] repairImage: DB lookup failed: ${e.message}`);
             }

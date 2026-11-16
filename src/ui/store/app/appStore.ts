@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { rendererLog } from '@/lib/rendererLog';
 import { savePref } from '@/lib/uiPrefs';
 import { useAccountStore } from '../accounts/accountStore';
 import { useEmployeeStore } from '../employee/employeeStore';

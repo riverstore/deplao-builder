@@ -129,3 +129,72 @@ export function normalizeZaloMessageImages(message: any): boolean {
     }
     return changed;
 }
+
+/**
+ * Trích xuất URL ảnh tốt nhất của một tin nhắn Zalo (hỗ trợ cả album, ảnh đơn, tin forward, attachments),
+ * tự động chuyển JXL sang bản JPG trên CDN.
+ */
+export function extractZaloImageUrl(msg: any): string {
+    if (!msg) return '';
+
+    // 1. Thử parse từ msg.content
+    let parsedContent: any = msg.content;
+    if (typeof parsedContent === 'string' && parsedContent.trim().startsWith('{')) {
+        try {
+            parsedContent = JSON.parse(parsedContent);
+        } catch {
+            parsedContent = null;
+        }
+    }
+
+    if (parsedContent && typeof parsedContent === 'object') {
+        let params: any = parsedContent.params;
+        if (typeof params === 'string') {
+            try {
+                params = JSON.parse(params);
+            } catch {
+                params = null;
+            }
+        }
+        const candidate =
+            params?.hd ||
+            params?.rawUrl ||
+            params?.normalUrl ||
+            params?.url ||
+            parsedContent.normalUrl ||
+            parsedContent.hdUrl ||
+            parsedContent.hd ||
+            parsedContent.href ||
+            parsedContent.thumb ||
+            parsedContent.url ||
+            params?.thumb ||
+            '';
+        if (candidate) return toZaloJpgUrl(candidate);
+    }
+
+    // 2. Thử lấy từ msg.attachments
+    try {
+        const atts = typeof msg.attachments === 'string'
+            ? JSON.parse(msg.attachments || '[]')
+            : (msg.attachments || []);
+        if (Array.isArray(atts) && atts.length > 0) {
+            const a = atts[0];
+            const candidate =
+                a?.hd ||
+                a?.rawUrl ||
+                a?.normalUrl ||
+                a?.url ||
+                a?.href ||
+                a?.thumb ||
+                '';
+            if (candidate) return toZaloJpgUrl(candidate);
+        }
+    } catch {}
+
+    // 3. Nếu msg.content là một URL http/https trực tiếp
+    if (typeof msg.content === 'string' && /^https?:\/\//i.test(msg.content.trim())) {
+        return toZaloJpgUrl(msg.content.trim());
+    }
+
+    return '';
+}

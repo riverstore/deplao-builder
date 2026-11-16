@@ -177,6 +177,23 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 - Biệt danh vẫn hiện lại tên mặc định ở một số ca dù liên hệ đã có dòng trong DB (người dùng đã nhắn trước rồi mới tải biệt danh, làm nhiều lần): KHÔNG tìm ra nguyên nhân chắc chắn bằng đọc code; DB giữ biệt danh đúng (đã kiểm tra DB thật: 23/57 liên hệ nhắn 14 ngày có alias, không có cặp trùng mã). Đã thêm lớp bảo vệ trong `chatStore`: `setContacts` giữ `alias` đang có khi danh sách nạp lại có alias rỗng; `updateContact` bỏ khóa `alias: undefined` (trải ra sẽ xóa alias). Xóa biệt danh phải đi qua `updateContact` với `alias: ''`. Nếu còn tái diễn: hỏi hiện ở UI nào, chuyển hội thoại khác rồi quay lại có khôi phục không (store hay DB), tắt mở app có khôi phục không.
 
 - **Công cụ ghi vết giao diện → tab Nhật ký**: log của renderer mặc định KHÔNG vào tab Nhật ký / file xuất. `src/ui/lib/rendererLog.ts` (`rendererLog(level, msg)`, `shortStack()`) gửi qua IPC `app:rendererLog` (`preload.ts`, handler ở `utilIpc.ts`) vào `Logger` của main, dòng có tiền tố `[renderer]`. Đang dùng cho truy vết biệt danh: tìm `[alias-trace]` — `updateContact đổi alias` (kèm stack ai gọi), `setContacts: ... giữ lại` và `event:message contact=... aliasTruoc/aliasSau1.5s`. Gỡ bớt khi lỗi biệt danh đã được xác định nguyên nhân.
+- **Sửa lỗi không load được ảnh album Zalo (hiện placeholder xám)**:
+  - Bản 26.10.4 tác giả thêm `file:repairImage` + `zaloImageRepairBudget` cho `ImageBubble` (ảnh đơn), nhưng bỏ quên `SingleImageInGroup` (ảnh trong album / lưới ảnh): không có cơ chế `requestZaloRepair`, `disabled` vĩnh viễn với Zalo khi ảnh lỗi, và parse thiếu các trường URL của Zalo (`normalUrl`, `url`, `attachments`).
+  - Đã khắc phục:
+    1. Thêm `extractZaloImageUrl(msg)` tại `src/utils/zalo/zaloImageUrl.ts`: trích xuất URL ảnh toàn diện từ `params` (`hd`, `rawUrl`, `normalUrl`, `url`, `thumb`), `content` (`normalUrl`, `hdUrl`, `hd`, `href`, `thumb`, `url`), `attachments` và chuỗi direct URL, tự động chuyển JXL sang JPG trên CDN.
+    2. Cập nhật `SingleImageInGroup` (`ChatWindowBubbles.tsx`): tích hợp `requestZaloRepair` (gọi `ipc.file?.repairImage`), cập nhật đường dẫn vào store `useChatStore.updateMessageLocalPath`, tự động thử lại khi có mạng lại hoặc sau 30s (`ZALO_FAILED_REARM_MS`).
+    3. Mở khóa nút tải lại trên khung placeholder xám của `SingleImageInGroup`: cho phép người dùng bấm thử tải lại cho cả Zalo và Telegram, hiển thị "Đang tải lại..." / "Thử tải lại".
+    4. Cập nhật `useMediaViewers.ts` (`buildImageEntry`) và `useThreadMediaMaintenance.ts` đồng bộ dùng `extractZaloImageUrl`, đồng thời cập nhật `fileIpc.ts` tra thêm `attachments` nếu `content` không chứa URL.
+
+- **Tìm kiếm đa từ không cạnh nhau (multi-token search)**:
+  - Trước đây tìm kiếm chỉ khớp chuỗi liền nhau (`includes(query)` / SQL `LIKE %query%`), nên gõ "an tha" không tìm ra "An (THCS Vĩnh Thạnh)".
+  - Đã khắc phục:
+    1. Bổ sung `getSearchTokens(search)` và `matchesSearchTokens(target, tokens)` vào `src/shared/chat/searchFold.ts`.
+    2. Nâng cấp `filterSearchIndex` và `matchesSearch` (`src/ui/lib/chat/conversations/conversationSearch.ts`): tách từ khoá thành tokens và kiểm tra mọi token đều có trong khoá tìm kiếm của liên hệ/bạn bè.
+    3. Nâng cấp `DatabaseService.getContactsFiltered` và `getGroupMembersPaginated`: tách query thành các token, mỗi token là một nhóm điều kiện `(deplao_fold(display_name) LIKE ? OR alias LIKE ? OR contact_id LIKE ? OR phone LIKE ?)`, nối nhau bằng `AND` trong SQL.
+    4. Cập nhật `highlightText` trong `GlobalSearchPanel.tsx`: highlight chính xác từng từ con mà người dùng gõ, giữ nguyên ánh xạ 1-1 ký tự có dấu / không dấu của tiếng Việt.
+    5. Cập nhật các modal tìm kiếm nhóm, thành viên nhóm, tab CRM: `ConversationList.tsx`, `GroupModals.tsx`, `GroupPicker.tsx`, `GroupMembersTab.tsx`, `mentionMembers.ts`, `campaignView.ts`.
+
 - `npm run dev`: giao diện (`src/ui`) tự nạp lại, nhưng main process (`electron/`, `src/services`, `src/utils`) chỉ biên dịch lại, phải tắt (Ctrl+C) và chạy lại mới có hiệu lực. `npm run production` thất bại ở bước rebuild `better-sqlite3` (`EBUSY`) nếu còn app dev đang chạy.
 
 - **NGUYÊN NHÂN GỐC của biệt danh "hiện lại tên mặc định khi có tin mới"** (xác định bằng log `[alias-trace]` + dữ liệu thật): Zalo KHÔNG trả biệt danh trong `alias`/`friendAlias` của `getUserInfo`; với bạn bè, `displayName` = tên bạn nhìn thấy (= biệt danh nếu có) còn `zaloName` = tên Zalo gốc (ví dụ `displayName="Cô Hằng (Phòng KTKĐ)" zaloName="Thanh Hang" alias=""`). Danh sách `getAliasList` cũng không đủ người. Code cũ coi `displayName` là tên thật nên lưu biệt danh vào cột `display_name`, tin nhắn kế tiếp (mang tên gốc `dName`) ghi đè → trả về tên mặc định. Đã sửa ở `src/utils/profileUtils.ts` `extractUserProfile`: nếu không có alias mà `displayName !== zaloName` thì `alias = displayName`, `displayName = zaloName`; `UserProfilePopup` dùng chung hàm. `refreshContactAlias` (chạy mỗi 24h khi có tin / mở hội thoại) sẽ tự bù biệt danh còn thiếu. Dữ liệu cũ: ~85 dòng có `alias == display_name` sẽ tự sửa ở lần `getUserInfo` kế tiếp. KHÔNG dùng lại `displayName` của getUserInfo làm tên thật.
@@ -200,29 +217,27 @@ Bối cảnh: app nhận tin Zalo qua WebSocket của thư viện `zca-js` (gi�
 - `npm install` báo nhiều lỗ hổng (`npm audit`) — chưa xử lý, đừng chạy `npm audit fix --force` (dễ làm hỏng app).
 - Ý tưởng app Android đã bàn: khả thi nhất là app client gọi REST/Socket tới máy Boss (chế độ employee có sẵn: `src/ui/lib/data/DataAccessor.ts`, `src/services/http/HttpRelayService.ts`), không chạy toàn bộ backend trên điện thoại.
 
-## 7. TRẠNG THÁI HIỆN TẠI & VIỆC ĐANG DỞ (cập nhật 01/11/2026)
+## 7. TRẠNG THÁI HIỆN TẠI & VIỆC ĐANG DỞ (cập nhật 03/11/2026)
 
 > AI tiếp quản: đọc mục này TRƯỚC, rồi ghi tiến độ vào `TIEN_DO.md` (xem 7.4). Claude sẽ đọc `TIEN_DO.md` + `git log` để theo dõi.
 
-### 7.1 Git
-- Nhánh `custom` đã gộp thành công bản tác giả **v26.10.4** (`ddcfbbe`) và đã push lên `myfork/custom` ở commit `2cbb580`. Nhánh `backup-before-26.10.4` giữ bản trước lần gộp 26.10.4.
-- Cấu trúc thư mục mới của tác giả đã được cập nhật toàn bộ cho các phần sửa của custom.
+### 7.1 Git & Tính năng vừa hoàn thành
+- Nhánh `custom` đã gộp thành công bản tác giả **v26.10.4** (`ddcfbbe`) và đã push lên `myfork/custom` ở commit `2cbb580`.
+- **Khắc phục lỗi album ảnh Zalo không load được**: `extractZaloImageUrl` bao quát toàn bộ cấu trúc URL ảnh của Zalo, đổi JXL sang JPG, sửa lỗi so sánh kiểu dữ liệu tài khoản khi lấy cookie (tránh CDN trả 403), thêm cơ chế auto-repair trong `ChatWindowBubbles`.
+- **Nâng cấp tìm kiếm đa từ không cạnh nhau**: Bổ sung `getSearchTokens` & `matchesSearchTokens` trong `searchFold.ts`, tách token `AND` trong `DatabaseService.ts` (`getContactsFiltered`, `getGroupMembersPaginated`), highlight đồng thời các từ khóa con trong `GlobalSearchPanel.tsx` và đồng bộ mọi modal/tab tìm kiếm ("an tha" ra "An (THCS Vĩnh Thạnh)").
+- **Hoàn thiện tính năng Hội thoại ẩn Zalo (ZL-03)**:
+  + Sửa `tryUnlockHiddenFromSearch` (`useZaloHidden.ts`): Bỏ chặn khi `size === 0`, luôn gửi IPC xác thực khi gõ 4 chữ số PIN.
+  + Sửa `unlockZaloHidden` (`zaloHiddenConversations.ts`): Gộp cả các ID có `zalo_hidden = 1` trong SQLite DB vào `threadIds` trả về khi mở khóa đúng PIN.
+  + Sửa `applyState` (`zaloHiddenConversations.ts`): Chỉ thay thế DB khi Zalo trả về `pinHash` hợp lệ, chống mất cờ ẩn khi API Zalo lỗi/chưa đồng bộ.
+  + Chuẩn hóa `ZaloHiddenMark.tsx`: Bình thường hiển thị kính lúp xám trung tính (bảo mật, không lộ có hội thoại ẩn), chỉ đỏ kèm chấm đỏ nhấp nháy khi có tin nhắn mới chưa đọc từ hội thoại ẩn; khi đang xem hội thoại ẩn thì kính lúp có nền đỏ, bấm vào lập tức khóa lại.
+  + Sửa `ConversationList.tsx`: Mở khóa thành công tự động xóa text, đóng bảng tìm kiếm chung và blur input để hiện ngay danh sách hội thoại ẩn.
+- Đã gỡ bỏ toàn bộ log truy vết tạm thời `[hidden-trace]`.
 - Cả hai typecheck (`tsconfig.electron.json` và `tsconfig.json`) đều đạt 0 lỗi (exit 0).
-- 8 điểm tính năng cốt lõi (old_messages, hideSeen, flashMuted, reactorTitle, tab pinned, profile alias, UI_PREF_KEYS, foldSearchText) đã được kiểm chứng hoạt động đầy đủ trên cấu trúc mới.
-- Việc đang CHƯA commit: `src/ui/store/app/appStore.ts` có 2 dòng `rendererLog(... '[hidden-trace]' ...)` (xem 7.2) — chỉ để truy vết lỗi kính lúp đỏ, gỡ sau khi xong.
 
-### 7.2 Lỗi đang điều tra: kính lúp ô tìm kiếm đỏ sai
-- Tính năng "hội thoại ẩn bằng PIN của Zalo" (ZL-03) là của TÁC GIẢ (`components/chat/zalo/hidden/ZaloHiddenMark.tsx`, `hooks/zalo/useZaloHidden.ts`, `src/services/zalo/zaloHiddenConversations.ts`). Kính lúp đỏ khi `appStore.hiddenConversations[zaloId].size > 0`.
-- Người dùng báo: 3 người đang ẩn thật (DB `contacts.zalo_hidden=1`: contact `3715591841337200611`, `8159312413219300936`, `8106672960253598963`, tài khoản `2291023224429361336`; 3 dòng này có `last_message_time=0` do `setContactAlias` tạo dòng tối thiểu) nhưng kính lúp CHỈ đỏ khi người ẩn có tin mới; không có tin mới thì xám. Trước đó còn báo "đỏ mà không thấy tooltip".
-- Đã đọc luồng: DB `getContactsWithFlags` → `appStore.loadFlags` (gom `hiddenSet`) → `ZaloHiddenMark`; cập nhật qua `db:contactFlagsChanged` → `applyContactFlags`; main đọc lại từ Zalo qua `refreshZaloHidden` (tối đa 6 giờ/lần, `whenStartupSettled`). Không thấy lỗi tĩnh. Đã thêm log `[hidden-trace]` ở `loadFlags` và `applyContactFlags`.
-- Việc cần làm: người dùng chạy app, gửi các dòng `[hidden-trace]` trong Cài đặt → Nhật ký (lúc mở app + lúc có tin mới từ người ẩn). Nếu `loadFlags` báo `0 hội thoại ẩn` dù DB có 3 → lỗi ở đường IPC/nạp cờ; nếu báo 3 mà vẫn xám → lỗi ở `ZaloHiddenMark` / tài khoản truyền vào. Sửa theo bằng chứng, KHÔNG đoán. Kiểm tra lại sau khi gộp 26.10.4 vì tác giả có thể đã sửa.
+### 7.2 Việc nên làm tiếp
+1. Commit các thay đổi hoàn thiện tính năng (`feat(chat): tìm kiếm đa từ, sửa ảnh album và hoàn thiện tin nhắn ẩn Zalo`).
+2. Push lên `myfork/custom`.
 
-### 7.3 Việc nên làm tiếp (theo thứ tự)
-1. Commit các file sửa đường dẫn sau gộp 26.10.4 (khi người dùng đồng ý).
-2. Người dùng push nhánh `custom` lên `myfork/custom` bằng `git push --force-with-lease myfork custom`.
-3. Chạy app dev (`npm run dev`) để kiểm tra giao diện và thu thập log `[hidden-trace]` điều tra lỗi kính lúp đỏ.
-4. Gỡ `[hidden-trace]` và `[alias-trace]` sau khi hoàn tất.
-
-### 7.4 Cách để Claude theo dõi tiến độ
+### 7.3 Cách để Claude theo dõi tiến độ
 - Cập nhật `TIEN_DO.md` ở gốc repo (file chỉ có trên máy, nằm trong `.git/info/exclude`, KHÔNG commit). Mỗi bước xong ghi 1 dòng: `[ngày giờ] làm gì → kết quả (typecheck pass/fail, file đã đụng)`. Ghi rõ "đang ở đâu" và "bước kế tiếp" ở đầu file; xung đột chưa giải quyết thì liệt kê file.
 - Commit nhỏ, thông điệp rõ (tiếng Việt) — Claude đọc `git log --oneline` và `git status` để biết. Không `git reset --hard`, không `--force` trần.

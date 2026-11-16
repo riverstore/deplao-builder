@@ -5,6 +5,7 @@
  */
 import { fileTypeIconSrc } from '@/lib/chat/fileTypeIcons';
 import React, {useState,} from 'react';
+import { rendererLog } from '@/lib/rendererLog';
 import {useChatStore} from '@/store/chat/chatStore';
 import {useAccountStore} from '@/store/accounts/accountStore';
 import {useAppStore} from '@/store/app/appStore';
@@ -25,7 +26,7 @@ import {TgsBubble} from './MessageBubbles';
 import OaListBubble from '../zalo/messages/OaListBubble';
 import {BubbleTime, MediaTimeBadge, TextWithInlineTime, formatBubbleTime} from './MessageTime';
 import {checkZaloMediaExpired, ExpiredMediaPlaceholder, isMediaExpired, setMediaExpiredInStore} from '../zalo/messages/ZaloMediaExpiry';
-import {toZaloJpgUrl} from '../../../../utils/zalo/zaloImageUrl';
+import {extractZaloImageUrl, toZaloJpgUrl} from '../../../../utils/zalo/zaloImageUrl';
 import {
     CAPTION_BUBBLE_MAX_WIDTH,
     CAPTION_BUBBLE_MIN_WIDTH,
@@ -608,37 +609,52 @@ export function MediaBubble({msg, onView, isSent, allContacts, groupMembersList,
     // Parse remote URL + caption
     let remoteUrl = '';
     let caption = '';
-    try {
-        const parsed = JSON.parse(msg.content || '{}');
-        if (parsed && typeof parsed === 'object') {
-            let paramsObj: any = parsed.params;
-            if (typeof paramsObj === 'string') {
-                try {
-                    paramsObj = JSON.parse(paramsObj);
-                } catch {
-                    paramsObj = null;
-                }
-            }
-            // JPEG XL image (message saved before the fix) → the JPG version on the CDN
-            remoteUrl = toZaloJpgUrl(paramsObj?.hd || paramsObj?.rawUrl || parsed.href || parsed.thumb || '');
-            if (parsed.title && typeof parsed.title === 'string') {
+    if (isZalo(msg.channel)) {
+        remoteUrl = extractZaloImageUrl(msg);
+        try {
+            const parsed = JSON.parse(msg.content || '{}');
+            if (parsed?.title && typeof parsed.title === 'string') {
                 const t = parsed.title.trim();
                 if (t && !t.startsWith('http')) caption = t;
             }
-        }
-    } catch {
-        // Not JSON (Telegram/Facebook) — content is plain text caption
-        const rawContent = (msg.content || '').trim();
-        // Only use as caption if it's not a media placeholder emoji
-        if (rawContent && !rawContent.startsWith('🖼️') && !rawContent.startsWith('🎬') && !rawContent.startsWith('🎞️') && !rawContent.startsWith('🎨') && !rawContent.startsWith('📎')) {
-            caption = rawContent;
-        }
-    }
-    if (!remoteUrl) {
-        try {
-            const attachments = JSON.parse(msg.attachments || '[]');
-            remoteUrl = attachments[0]?.url || attachments[0]?.href || attachments[0]?.thumb || '';
         } catch {
+            const rawContent = (msg.content || '').trim();
+            if (rawContent && !rawContent.startsWith('🖼️') && !rawContent.startsWith('🎬') && !rawContent.startsWith('🎞️') && !rawContent.startsWith('🎨') && !rawContent.startsWith('📎')) {
+                caption = rawContent;
+            }
+        }
+    } else {
+        try {
+            const parsed = JSON.parse(msg.content || '{}');
+            if (parsed && typeof parsed === 'object') {
+                let paramsObj: any = parsed.params;
+                if (typeof paramsObj === 'string') {
+                    try {
+                        paramsObj = JSON.parse(paramsObj);
+                    } catch {
+                        paramsObj = null;
+                    }
+                }
+                remoteUrl = paramsObj?.hd || paramsObj?.rawUrl || parsed.href || parsed.thumb || '';
+                if (parsed.title && typeof parsed.title === 'string') {
+                    const t = parsed.title.trim();
+                    if (t && !t.startsWith('http')) caption = t;
+                }
+            }
+        } catch {
+            // Not JSON (Telegram/Facebook) — content is plain text caption
+            const rawContent = (msg.content || '').trim();
+            // Only use as caption if it's not a media placeholder emoji
+            if (rawContent && !rawContent.startsWith('🖼️') && !rawContent.startsWith('🎬') && !rawContent.startsWith('🎞️') && !rawContent.startsWith('🎨') && !rawContent.startsWith('📎')) {
+                caption = rawContent;
+            }
+        }
+        if (!remoteUrl) {
+            try {
+                const attachments = JSON.parse(msg.attachments || '[]');
+                remoteUrl = attachments[0]?.url || attachments[0]?.href || attachments[0]?.thumb || '';
+            } catch {
+            }
         }
     }
 
@@ -1844,6 +1860,18 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
     const [loadFailed, setLoadFailed] = React.useState(false);
     const [saving, setSaving] = React.useState(false);
     const [checkingExpiry, setCheckingExpiry] = React.useState(false);
+    const [zaloRepairing, setZaloRepairing] = React.useState(false);
+    const [repairedLocalUrl, setRepairedLocalUrl] = React.useState<string | null>(null);
+    const zaloRepairingRef = React.useRef(false);
+    const activeAccId = useAccountStore((s) => s.activeAccountId);
+    const resolvedZaloId = String(msg?.owner_zalo_id || msg?.zaloId || msg?.account_id || activeAccId || '');
+    const repairKey = `${resolvedZaloId}:${msg?.msg_id}`;
+    const repairTimersRef = React.useRef<number[]>([]);
+    const clearRepairTimers = () => {
+        repairTimersRef.current.forEach(timer => window.clearTimeout(timer));
+        repairTimersRef.current = [];
+    };
+    React.useEffect(() => clearRepairTimers, []);
 
     const localPathsStr = typeof msg.local_paths === 'string' ? msg.local_paths : JSON.stringify(msg.local_paths ?? '');
     React.useEffect(() => {
@@ -1877,34 +1905,42 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
     }
 
     let remoteUrl = '';
-    try {
-        const parsed = JSON.parse(msg.content || '{}');
-        if (parsed && typeof parsed === 'object') {
-            const params = typeof parsed.params === 'string' ? JSON.parse(parsed.params) : (parsed.params || {});
-            // JPEG XL image (message saved before the fix) → the JPG version on the CDN
-            remoteUrl = toZaloJpgUrl(params.hd || params.rawUrl || parsed.href || parsed.thumb || '');
+    if (isZalo(msg.channel)) {
+        remoteUrl = extractZaloImageUrl(msg);
+    } else {
+        try {
+            const parsed = JSON.parse(msg.content || '{}');
+            if (parsed && typeof parsed === 'object') {
+                const params = typeof parsed.params === 'string' ? JSON.parse(parsed.params) : (parsed.params || {});
+                remoteUrl = params.hd || params.rawUrl || parsed.href || parsed.thumb || '';
+            }
+        } catch {
         }
-    } catch {
+        // FB fallback: get the URL from attachments via MediaResolver
+        if (!remoteUrl && isFacebook(msg.channel)) {
+            const att = extractAttachments(msg)[0];
+            remoteUrl = att?.url || att?.href || att?.thumb || '';
+        }
     }
-    // FB fallback: get the URL from attachments via MediaResolver
-    if (!remoteUrl && isFacebook(msg.channel)) {
-        const att = extractAttachments(msg)[0];
-        remoteUrl = att?.url || att?.href || att?.thumb || '';
     }
 
     const isVideoTile = ['video', 'chat.video.msg', 'gif'].includes(String(msg.msg_type || '').toLowerCase());
     // Zalo media has expired: only the local copy is left (if any), do not call the CDN any more
     const mediaExpired = isMediaExpired(msg);
 
+    const effectiveLocalUrl = repairedLocalUrl || localUrl;
     // Remote-first: CDN shows immediately; switch to local once the file is downloaded
-    const displayUrl = mediaExpired ? localUrl : (useLocal ? (localUrl || remoteUrl) : (remoteUrl || localUrl));
+    const displayUrl = mediaExpired ? effectiveLocalUrl : (useLocal ? (effectiveLocalUrl || remoteUrl) : (remoteUrl || effectiveLocalUrl));
     const viewUrl = mediaExpired ? displayUrl : (remoteUrl || displayUrl);
 
     const telegramRepair = useTelegramMediaRepair(msg, !displayUrl);
     // Image has only a Zalo link → ask the Boss machine to save it (as in MediaBubble)
     useEnsureMessageImage(msg, isZalo(msg?.channel) && !isVideoTile && !localFilePath && !!remoteUrl && !mediaExpired);
+
     const handleImgError = () => {
-        if (useLocal && remoteUrl && !mediaExpired) {
+        if (mediaExpired) {
+            setLoadFailed(true);
+        } else if (useLocal && remoteUrl) {
             setUseLocal(false); // local failed → fall back to the CDN immediately
         } else {
             setLoadFailed(true);
@@ -1945,14 +1981,19 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
                 kind={isVideoTile ? 'video' : 'image'}
                 compact
                 selected={!!(isSelectingProp && isSelected)}
-                retrying={checkingExpiry}
+                retrying={checkingExpiry || zaloRepairing}
                 onClick={(e) => {
                     e.stopPropagation();
                     if (isSelectingProp) {
                         onToggleSelect?.(msg.msg_id);
                         return;
                     }
-                    if (checkingExpiry || !remoteUrl) return;
+                    if (checkingExpiry || zaloRepairing) return;
+                    if (isZalo(msg.channel)) {
+                        void requestZaloRepair(true);
+                        return;
+                    }
+                    if (!remoteUrl) return;
                     setCheckingExpiry(true);
                     void checkZaloMediaExpired(msg, [remoteUrl], true)
                         .then(stillExpired => {
@@ -1965,13 +2006,11 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
     }
 
     if (loadFailed || !displayUrl) {
+        const canRetryTelegram = isTelegramUser(msg.channel);
+        const canRetryZalo = isZalo(msg.channel);
+        const isRepairing = telegramRepair.repairing || zaloRepairing;
         return (
-            <button
-                type="button"
-                onClick={() => void telegramRepair.requestRepair('manual_retry', true)}
-                disabled={!isTelegramUser(msg.channel) || telegramRepair.repairing}
-                title={isTelegramUser(msg.channel) ? tr('Tải lại ảnh Telegram này') : undefined}
-                className={`${tileHeightClass} flex-1 min-w-0 bg-foreground/5 flex flex-col gap-1 items-center justify-center text-muted-foreground select-none disabled:cursor-default`}>
+            <div className={`${tileHeightClass} flex-1 min-w-0 bg-foreground/5 flex flex-col gap-1 items-center justify-center text-muted-foreground select-none p-1`}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
                      className="opacity-30">
                     <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -1979,8 +2018,32 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
                     <polyline points="21 15 16 10 5 21"/>
                     {loadFailed && <line x1="2" y1="2" x2="22" y2="22"/>}
                 </svg>
-                {telegramRepair.repairing && <span className="text-[10px] opacity-60">{tr('Đang tải lại...')}</span>}
-            </button>
+                {isRepairing && <span className="text-[10px] opacity-60">{tr('Đang tải lại...')}</span>}
+                {!isRepairing && (canRetryTelegram || canRetryZalo) && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (canRetryTelegram) void telegramRepair.requestRepair('manual_retry', true);
+                            else if (canRetryZalo) void requestZaloRepair(true);
+                        }}
+                        className="text-[10px] text-blue-400 hover:underline cursor-pointer">
+                        {tr('Thử tải lại')}
+                    </button>
+                )}
+                {remoteUrl && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            ipc.shell?.openExternal(remoteUrl);
+                        }}
+                        title={remoteUrl}
+                        className="text-[9px] text-muted-foreground hover:text-foreground hover:underline truncate max-w-full px-1">
+                        {tr('Mở link ảnh')}
+                    </button>
+                )}
+            </div>
         );
     }
     const handleClick = (e: React.MouseEvent) => {
@@ -2075,6 +2138,7 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
                 alt=""
                 decoding="async"
                 className={`${tileHeightClass} w-full object-cover transition-opacity bg-foreground/5${isSelectingProp ? '' : ' hover:opacity-90'}`}
+                onLoad={handleImgLoad}
                 onError={handleImgError}
             />
             {/* Selection overlay */}
