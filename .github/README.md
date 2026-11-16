@@ -32,6 +32,7 @@
 - Nút **Tùy chỉnh nhanh** trên thanh trên cùng: giao diện, bảng màu, phông chữ Google Fonts (tải một lần rồi lưu trên máy), cỡ chữ tin nhắn.
 - Riêng tư: làm mờ tin nhắn / ảnh đại diện / tên hội thoại (rê chuột để xem), ẩn trạng thái "đang soạn" và "đã xem".
 - Cài đặt giao diện lưu trong cơ sở dữ liệu của app nên **dùng chung giữa `npm run dev` và bản build**, đi theo thư mục dữ liệu (portable).
+- **Menu chuột phải (Context menu) cho textbox**: Đầy đủ tính năng Hoàn tác, Làm lại, Cắt, Sao chép, Dán, Dán thuần văn bản, Xóa, Chọn tất cả cho mọi ô nhập liệu (ô soạn tin nhắn, ô tìm kiếm, form...) và hỗ trợ sao chép nhanh khi bôi đen văn bản.
 
 **Thông báo**
 - Đồng bộ danh sách tắt thông báo đặt trên điện thoại / Zalo PC; tùy chọn nháy taskbar với hội thoại đã tắt thông báo.
@@ -40,6 +41,7 @@
 
 Dựa trên Deplao v26.10.4.
 
+- **Menu chuột phải (Context menu) cho ô nhập liệu**: Khắc phục lỗi thiếu context menu trên các textbox; hỗ trợ đầy đủ Hoàn tác, Cắt, Sao chép, Dán, Dán thuần văn bản, Xóa, Chọn tất cả trên toàn bộ app.
 - **Hội thoại ẩn Zalo (mã PIN)**: Sửa lỗi gõ PIN không mở được hội thoại ẩn; kính lúp ô tìm kiếm chuẩn hóa bảo mật theo Zalo (chỉ đỏ khi có tin mới chưa đọc từ hội thoại ẩn, bình thường xám); bảo toàn cờ ẩn trong DB máy tính.
 - **Tìm kiếm đa từ không cạnh nhau**: Gõ các từ cách nhau không dấu (như `"an tha"`) tìm thấy ngay tên đầy đủ (như `"An (THCS Vĩnh Thạnh)"`), highlight đồng thời các từ tìm được trên toàn bộ các bộ lọc, chọn thành viên nhóm và nhắc tên.
 - **Sửa lỗi ảnh album Zalo**: Trích xuất URL ảnh đa tầng, chuyển đổi JXL sang JPG, sửa lỗi so sánh tài khoản khiến cookie mất làm CDN trả 403.
