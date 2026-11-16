@@ -295,7 +295,7 @@ export default function LockScreenSettings() {
             <ShieldIcon className="mt-0.5 h-5 w-5 flex-shrink-0 text-muted-foreground" />
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-foreground">{tr('Khoá màn hình')}</p>
-              <p className="text-xs text-muted-foreground">{tr('Đặt mật khẩu để bật. Tối thiểu 4 ký tự.')}</p>
+              <p className="text-xs text-muted-foreground">{tr('Đặt mật khẩu hoặc mã PIN (4 - 8 ký tự, mặc định 4 số).')}</p>
             </div>
             <StatusPill on={false} />
           </div>
@@ -304,7 +304,7 @@ export default function LockScreenSettings() {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={e => { setPassword(e.target.value); clearMessages(); }}
-              placeholder={tr('Mật khẩu')}
+              placeholder={tr('Mật khẩu / Mã PIN (mặc định 4 số)')}
               aria-label={tr('Mật khẩu')}
             />
             <Input
@@ -371,7 +371,7 @@ export default function LockScreenSettings() {
           <Input type={showPassword ? 'text' : 'password'} value={oldPassword} aria-label={tr('Mật khẩu hiện tại')}
             onChange={e => { setOldPassword(e.target.value); clearMessages(); }} placeholder={tr('Mật khẩu hiện tại')} />
           <Input type={showPassword ? 'text' : 'password'} value={newPassword} aria-label={tr('Mật khẩu mới')}
-            onChange={e => { setNewPassword(e.target.value); clearMessages(); }} placeholder={tr('Mật khẩu mới (tối thiểu 4 ký tự)')} />
+            onChange={e => { setNewPassword(e.target.value); clearMessages(); }} placeholder={tr('Mật khẩu mới (4 - 8 ký tự, mặc định 4 số)')} />
           <Input type={showPassword ? 'text' : 'password'} value={confirmPassword} aria-label={tr('Nhập lại mật khẩu mới')}
             onChange={e => { setConfirmPassword(e.target.value); clearMessages(); }}
             onKeyDown={e => { if (e.key === 'Enter') void handleChangePassword(); }}
