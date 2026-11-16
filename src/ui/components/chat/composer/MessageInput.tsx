@@ -7,6 +7,7 @@ import Logger from '../../../../utils/Logger';
 import { useShallow } from 'zustand/react/shallow';
 import {useAccountStore} from '@/store/accounts/accountStore';
 import {useAppStore} from '@/store/app/appStore';
+import { isPrivacyEnabled } from '@/store/privacyStore';
 import {useEmployeeStore} from '@/store/employee/employeeStore';
 import ipc, { buildZaloAuth } from '@/lib/ipc'
 import { openTelegramMiniApp } from '@/lib/chat/telegram/telegramMiniApp';
@@ -367,6 +368,8 @@ export default function MessageInput() {
   const sendTypingEvent = useCallback(() => {
     // Comments section: "đang gõ" (typing) of the group shows on the main line of the discussion group → do not send
     if (!activeAccountId || !activeThreadId || commentMode) return;
+    // Tùy chọn riêng tư: không cho người nhận thấy "đang soạn tin"
+    if (isPrivacyEnabled('hideTyping')) return;
     const now = Date.now();
     // Throttle: send at most once per 4 seconds
     if (now - lastTypingSentRef.current < 4000) return;

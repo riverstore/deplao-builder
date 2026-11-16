@@ -10,6 +10,7 @@
 import { Channel } from '../../../configs/channels/channelConfig';
 import { getAdapter } from './adapters/registry';
 import type { SendAttachmentsParams } from './adapters/ChannelAdapter';
+import { isPrivacyEnabled } from '../store/privacyStore';
 
 // Re-export types for backward compatibility
 export type {
@@ -150,6 +151,8 @@ export async function markAsRead(channel: Channel, params: {
   accountId: string;
   threadId: string;
 }) {
+  // Ẩn "Đã xem": không gửi read receipt (Facebook/Telegram); trạng thái đọc trong app do DB lo
+  if (isPrivacyEnabled('hideSeen')) return { success: true };
   return getAdapter(channel).markAsRead(params);
 }
 
