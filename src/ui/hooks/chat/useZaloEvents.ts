@@ -12,6 +12,7 @@ import DataAccessor, { isReadFailure, refreshLibraryCache } from '../../lib/data
 import { useEmployeeResync } from '../accounts/useEmployeeResync';
 import { LIBRARY_CHANGED_EVENT, LOCAL_PIN_CHANGED_EVENT, THREAD_LABELS_CHANGED_EVENT } from '@/lib/chat/realtime/relayUiEvents';
 import { reloadAccountContacts } from '@/lib/chat/conversations/accountContacts';
+import { populateAliasesFromContacts, registerAlias, removeAlias, resolveSenderAlias } from '@/lib/chat/conversations/senderAliasLookup';
 import { messageQueue } from '@/lib/chat/send/MessageQueue';
 import { fetchAllAliases } from '../../lib/zalo/zaloAliasUtils';
 import { channelSupports, type Channel } from '@/../configs/channels/channelConfig';
@@ -1394,9 +1395,11 @@ export function useZaloEvents() {
       let lastMsgPreview = rawPreview;
       if (isGroup && rawPreview) {
         const memberName = useAppStore.getState().groupInfoCache?.[zaloId]?.[threadId]?.members?.find(m => String(m.userId) === uidFrom)?.displayName;
+        const senderContact = (useChatStore.getState().contacts[zaloId] || []).find(c => c.contact_id === uidFrom);
+        const resolvedSenderAlias = senderContact?.alias?.trim() || resolveSenderAlias(uidFrom, zaloId, threadId) || aliasMap.get(`${zaloId}__${uidFrom}`)?.trim();
         const groupSenderName = isSelf
           ? 'Bạn'
-          : (aliasMap.get(`${zaloId}__${uidFrom}`) || dName || senderInfo?.displayName || senderInfo?.zaloName || memberName || '');
+          : (resolvedSenderAlias || dName || senderInfo?.displayName || senderInfo?.zaloName || memberName || '');
         if (groupSenderName) {
           const senderPrefix = `${groupSenderName}: `;
           if (!rawPreview.startsWith(senderPrefix)) {
@@ -1544,8 +1547,10 @@ export function useZaloEvents() {
               const memberName = isGroup
                 ? useAppStore.getState().groupInfoCache?.[zaloId]?.[threadId]?.members?.find(m => String(m.userId) === uidFrom)?.displayName
                 : '';
+              const senderContact = (useChatStore.getState().contacts[zaloId] || []).find(c => c.contact_id === uidFrom);
+              const resolvedSenderAlias = senderContact?.alias?.trim() || resolveSenderAlias(uidFrom, zaloId, threadId) || aliasMap.get(`${zaloId}__${uidFrom}`)?.trim();
               const groupSenderName = isGroup
-                ? (isSelf ? 'Bạn' : (aliasMap.get(`${zaloId}__${uidFrom}`) || dName || senderInfo?.displayName || senderInfo?.zaloName || memberName || ''))
+                ? (isSelf ? 'Bạn' : (resolvedSenderAlias || dName || senderInfo?.displayName || senderInfo?.zaloName || memberName || ''))
                 : '';
               if (showToast) {
                 useInAppNotifyStore.getState().push({
@@ -1902,6 +1907,7 @@ export function useZaloEvents() {
       // the employee machine is only a stub → previously nothing was loaded, so aliases / the name-mention list were never available)
       reloadAccountContacts(data.zaloId).catch(() => null).then((contacts) => {
         // Populate aliasMap from the DB so fetchContactInfo does not overwrite the alias
+        populateAliasesFromContacts(data.zaloId, contacts || []);
         for (const c of contacts || []) {
           if (c.alias) {
             aliasMap.set(`${data.zaloId}__${c.contact_id}`, c.alias);
@@ -2550,8 +2556,13 @@ export function useZaloEvents() {
       if (!zaloId || !contactId || data?.alias === undefined) return;
       const alias = String(data.alias || '');
       const aliasKey = `${zaloId}__${contactId}`;
-      if (alias) aliasMap.set(aliasKey, alias);
-      else aliasMap.delete(aliasKey);
+      if (alias) {
+        aliasMap.set(aliasKey, alias);
+        registerAlias(zaloId, contactId, alias);
+      } else {
+        aliasMap.delete(aliasKey);
+        removeAlias(zaloId, contactId);
+      }
       // Only conversations that already exist: the Boss stores aliases for the whole address book → does not create "ghost" conversations on the employee machine
       const contact = (useChatStore.getState().contacts[zaloId] || []).find((item) => item.contact_id === contactId);
       if (contact && (contact.alias || '') !== alias) {

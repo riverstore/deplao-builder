@@ -34,6 +34,7 @@ import { requestGroupAvatar } from '@/lib/chat/conversations/groupAvatarLoader';
 import { BellIcon, BellOffIcon, BookmarkIcon, BoxIcon, EyeIcon, EyeOffIcon, CalendarIcon, ChatIcon, CheckCircleIcon, CheckIcon, CircleIcon, ClipboardListIcon, CloseIcon, CloudIcon, FolderIcon, GlobeIcon, HardDriveIcon, ImageIcon, InboxIcon, LinkIcon, MapPinIcon, MessageCircleIcon, PaperclipIcon, PinIcon, PluginIcon, StarIcon, TargetIcon, TrashIcon, UsersIcon } from '@/components/common/icons';
 import { toLocalMediaUrl } from '@/lib/media/localMedia';
 import { fileTypeIconSrc } from '@/lib/chat/fileTypeIcons';
+import { initSenderAliasLookup, resolveSenderAlias } from '@/lib/chat/conversations/senderAliasLookup';
 import GlobalSearchPanel from './GlobalSearchPanel';
 import StarredMessagesPanel from './StarredMessagesPanel';
 import AutoMarkReadModal from './AutoMarkReadModal';
@@ -525,6 +526,9 @@ export default function ConversationList() {
 
   // Paging when the account / filter changes (the number of rows built per list: see listViewKey above)
   useEffect(() => {
+    if (activeAccountId) {
+      void initSenderAliasLookup(activeAccountId);
+    }
     const accountChanged = pagingAccountRef.current !== activeAccountId;
     pagingAccountRef.current = activeAccountId;
     setPaging(prev => {
@@ -2493,7 +2497,7 @@ export default function ConversationList() {
             channel: (account.channel || CHANNEL.ZALO) as Channel,
             threadId,
             preview: (() => {
-              const p = formatLastMessage(contact?.last_message);
+              const p = formatLastMessage(contact?.last_message, (sender) => resolveSenderAlias(sender, account.zalo_id));
               return typeof p === 'string' ? p : (p.prefix ? `${p.prefix}📂 ${p.fileName}` : `📂 ${p.fileName}`);
             })(),
             timeLabel: contact?.last_message_time ? formatTime(contact.last_message_time) : '',
@@ -3171,7 +3175,7 @@ export default function ConversationList() {
                 <div className="flex items-center justify-between gap-1 mt-1">
                   <span className="text-sm text-muted-foreground truncate">
                     {latestEntry
-                      ? <><span className="text-foreground/80">{latestEntry.account.full_name || latestEntry.account.zalo_id}: </span>{formatLastMessage(myDocsSummary.latest?.last_message)}</>
+                      ? <><span className="text-foreground/80">{latestEntry.account.full_name || latestEntry.account.zalo_id}: </span>{formatLastMessage(myDocsSummary.latest?.last_message, (sender) => resolveSenderAlias(sender, latestEntry.account.zalo_id))}</>
                       : tr('{{count}} tài khoản', { count: myDocsEntries.length })}
                   </span>
                   {myDocsSummary.unread > 0 && (
@@ -3350,7 +3354,10 @@ export default function ConversationList() {
                         if (draftText) {
                           return <><span className="text-red-400">{tr('Chưa gửi:')} </span><span className="text-muted-foreground">{draftText}</span></>;
                         }
-                        const preview = formatLastMessage(contact.last_message);
+                        const preview = formatLastMessage(
+                          contact.last_message,
+                          (sender) => resolveSenderAlias(sender, contactZaloId, contact.contact_id),
+                        );
                         if (typeof preview !== 'string') {
                           return (
                             <span className="flex items-center gap-1.5 min-w-0">
@@ -3623,17 +3630,32 @@ function filePreview(fileName: string | undefined, fileExt?: string, prefix?: st
     : { prefix, fileName: 'File đính kèm', iconSrc: fileTypeIconSrc('') };
 }
 
-/** Dòng xem trước tin cuối; tin file trả về FilePreview để hiển thị icon theo loại file */
-function formatLastMessage(msg: string | undefined): string | FilePreview {
+/** Dòng xem trước tin cuối; tin file trả về FilePreview để hiển thị icon theo loại file.
+ * Hỗ trợ callback aliasLookup để ưu tiên hiển thị biệt danh của người gửi khi có tiền tố "Tên: ..."
+ */
+function formatLastMessage(
+  msg: string | undefined,
+  aliasLookup?: (rawSender: string) => string | undefined,
+): string | FilePreview {
   if (!msg) return '';
 
   // Hỗ trợ bóc tách tiền tố người gửi tin nhắn nhóm (dạng "Tên: ..." hoặc "Bạn: ...")
   let prefix = '';
   let content = msg;
-  const prefixMatch = msg.match(/^([^:\n]{1,50}:\s+)(.*)$/s);
+  const prefixMatch = msg.match(/^([^:\n]{1,100}:)(?:\s+)?(.*)$/s);
   if (prefixMatch && !msg.startsWith('{')) {
-    prefix = prefixMatch[1];
+    prefix = `${prefixMatch[1]} `;
     content = prefixMatch[2];
+
+    if (aliasLookup) {
+      const rawSender = prefixMatch[1].slice(0, -1).trim();
+      if (rawSender && rawSender !== 'Bạn' && rawSender !== 'You') {
+        const resolved = aliasLookup(rawSender);
+        if (resolved && resolved.trim()) {
+          prefix = `${resolved.trim()}: `;
+        }
+      }
+    }
   }
 
   // last_message được lưu sẵn dạng "📂 <tên file>" (DB và useZaloEvents) → đổi icon theo loại file khi hiển thị,
