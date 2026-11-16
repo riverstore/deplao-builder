@@ -2497,7 +2497,7 @@ export default function ConversationList() {
             channel: (account.channel || CHANNEL.ZALO) as Channel,
             threadId,
             preview: (() => {
-              const p = formatLastMessage(contact?.last_message, (sender) => resolveSenderAlias(sender, account.zalo_id));
+              const p = formatLastMessage(contact?.last_message, (sender) => resolveSenderAlias(sender, account.zalo_id, threadId));
               return typeof p === 'string' ? p : (p.prefix ? `${p.prefix}📂 ${p.fileName}` : `📂 ${p.fileName}`);
             })(),
             timeLabel: contact?.last_message_time ? formatTime(contact.last_message_time) : '',
@@ -3175,7 +3175,7 @@ export default function ConversationList() {
                 <div className="flex items-center justify-between gap-1 mt-1">
                   <span className="text-sm text-muted-foreground truncate">
                     {latestEntry
-                      ? <><span className="text-foreground/80">{latestEntry.account.full_name || latestEntry.account.zalo_id}: </span>{formatLastMessage(myDocsSummary.latest?.last_message, (sender) => resolveSenderAlias(sender, latestEntry.account.zalo_id))}</>
+                      ? <><span className="text-foreground/80">{latestEntry.account.full_name || latestEntry.account.zalo_id}: </span>{formatLastMessage(myDocsSummary.latest?.last_message, (sender) => resolveSenderAlias(sender, latestEntry.account.zalo_id, latestEntry.threadId))}</>
                       : tr('{{count}} tài khoản', { count: myDocsEntries.length })}
                   </span>
                   {myDocsSummary.unread > 0 && (
