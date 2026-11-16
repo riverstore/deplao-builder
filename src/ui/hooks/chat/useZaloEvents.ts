@@ -2049,7 +2049,11 @@ export function useZaloEvents() {
       const { zaloId, reason } = data;
       updateAccountStatus(zaloId, false, false);
       updateListenerActive(zaloId, false);
-      const reasonText = reason === 'max_retries' ? tr('Không thể tự kết nối lại') : tr('Lỗi: {{reason}}', { reason });
+      const reasonText = reason === 'max_retries'
+        ? tr('Không thể tự kết nối lại')
+        : reason === 'duplicate_connection'
+          ? tr('Tài khoản đang được mở ở nơi khác (Zalo Web). Hãy đóng Zalo Web trước')
+          : tr('Lỗi: {{reason}}', { reason });
       showNotification(tr('⚠️ Tài khoản {{zaloId}} mất kết nối. {{reasonText}}. Vui lòng kết nối lại thủ công.', { zaloId, reasonText }), 'error');
     });
 
