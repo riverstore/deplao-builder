@@ -16,7 +16,7 @@ export type NotifSettingsOverride = Partial<NotifSettings>;
 
 export const NOTIF_OVERRIDES_STORAGE_KEY = 'app_notifSettingsByAccount';
 
-const FIELDS = ['soundEnabled', 'desktopEnabled', 'volume'] as const;
+const FIELDS = ['soundEnabled', 'desktopEnabled', 'flashMuted', 'volume'] as const;
 
 /** Read the saved value: drop items of the wrong type, clamp volume to 0–1, drop an account that has no items left. */
 export function normalizeNotifOverrides(raw: unknown): Record<string, NotifSettingsOverride> {
@@ -28,6 +28,7 @@ export function normalizeNotifOverrides(raw: unknown): Record<string, NotifSetti
     const entry: NotifSettingsOverride = {};
     if (typeof stored.soundEnabled === 'boolean') entry.soundEnabled = stored.soundEnabled;
     if (typeof stored.desktopEnabled === 'boolean') entry.desktopEnabled = stored.desktopEnabled;
+    if (typeof stored.flashMuted === 'boolean') entry.flashMuted = stored.flashMuted;
     if (typeof stored.volume === 'number' && Number.isFinite(stored.volume)) entry.volume = Math.min(1, Math.max(0, stored.volume));
     if (Object.keys(entry).length) overrides[accountId] = entry;
   }

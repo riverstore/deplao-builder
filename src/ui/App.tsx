@@ -34,6 +34,7 @@ import TelegramIncomingCall from './components/chat/telegram/quick/TelegramIncom
 import { UpdateNotification } from './components/common/notifications/UpdateNotification';
 import { useAppStore } from './store/app/appStore';
 import { usePrivacyStore } from './store/privacyStore';
+import { startZaloMutePolling } from './lib/zaloMuteSync';
 import { useAccountStore } from './store/accounts/accountStore';
 import { useChatStore } from './store/chat/chatStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -1267,6 +1268,9 @@ export default function App() {
     return () => unsub?.();
   }, []);
 
+  // Mute đặt trên điện thoại / Zalo PC: đồng bộ lúc khởi động và định kỳ (event:connected có thể đến trước khi giao diện sẵn sàng)
+  useEffect(() => startZaloMutePolling(), []);
+
   // ─── Flash taskbar on new incoming message when window not focused ────────
   useEffect(() => {
     const unsub = window.electronAPI?.on('event:message', (data: any) => {
@@ -1278,8 +1282,10 @@ export default function App() {
           || data?.message?._commentOnly === true; // comment in a discussion group not joined yet
         // No flash for my own messages, muted conversations or ones in the "Khác" (Other) folder
         if (isSelf || suppressNotification) return;
-        const { isMuted, isInOthers, isZaloHidden } = useAppStore.getState();
-        if (isMuted(zaloId, threadId) || isInOthers(zaloId, threadId) || isZaloHidden(zaloId, threadId)) return;
+        const { isMuted, isInOthers, isZaloHidden, getNotifSettingsForAccount } = useAppStore.getState();
+        if (isInOthers(zaloId, threadId) || isZaloHidden(zaloId, threadId)) return;
+        // Hội thoại mute chỉ nháy khi bật tùy chọn flashMuted
+        if (isMuted(zaloId, threadId) && !getNotifSettingsForAccount(zaloId).flashMuted) return;
         window.electronAPI?.app?.flashFrame?.(true);
       }
     });
@@ -1300,8 +1306,10 @@ export default function App() {
       // even the event field name (`userID` is), and client-side fallback can
       // mark another participant's message as the logged-in account.
       if (data?.message?.isSelf === true) return;
-      const { isMuted, isInOthers, isZaloHidden } = useAppStore.getState();
-      if (isMuted(accountId, threadId) || isInOthers(accountId, threadId) || isZaloHidden(accountId, threadId)) return;
+      const { isMuted, isInOthers, isZaloHidden, getNotifSettingsForAccount } = useAppStore.getState();
+      if (isInOthers(accountId, threadId) || isZaloHidden(accountId, threadId)) return;
+      // Hội thoại mute chỉ nháy khi bật tùy chọn flashMuted
+      if (isMuted(accountId, threadId) && !getNotifSettingsForAccount(accountId).flashMuted) return;
       window.electronAPI?.app?.flashFrame?.(true);
     });
     return () => unsub?.();
