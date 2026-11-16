@@ -1860,18 +1860,6 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
     const [loadFailed, setLoadFailed] = React.useState(false);
     const [saving, setSaving] = React.useState(false);
     const [checkingExpiry, setCheckingExpiry] = React.useState(false);
-    const [zaloRepairing, setZaloRepairing] = React.useState(false);
-    const [repairedLocalUrl, setRepairedLocalUrl] = React.useState<string | null>(null);
-    const zaloRepairingRef = React.useRef(false);
-    const activeAccId = useAccountStore((s) => s.activeAccountId);
-    const resolvedZaloId = String(msg?.owner_zalo_id || msg?.zaloId || msg?.account_id || activeAccId || '');
-    const repairKey = `${resolvedZaloId}:${msg?.msg_id}`;
-    const repairTimersRef = React.useRef<number[]>([]);
-    const clearRepairTimers = () => {
-        repairTimersRef.current.forEach(timer => window.clearTimeout(timer));
-        repairTimersRef.current = [];
-    };
-    React.useEffect(() => clearRepairTimers, []);
 
     const localPathsStr = typeof msg.local_paths === 'string' ? msg.local_paths : JSON.stringify(msg.local_paths ?? '');
     React.useEffect(() => {
@@ -1981,19 +1969,14 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
                 kind={isVideoTile ? 'video' : 'image'}
                 compact
                 selected={!!(isSelectingProp && isSelected)}
-                retrying={checkingExpiry || zaloRepairing}
+                retrying={checkingExpiry}
                 onClick={(e) => {
                     e.stopPropagation();
                     if (isSelectingProp) {
                         onToggleSelect?.(msg.msg_id);
                         return;
                     }
-                    if (checkingExpiry || zaloRepairing) return;
-                    if (isZalo(msg.channel)) {
-                        void requestZaloRepair(true);
-                        return;
-                    }
-                    if (!remoteUrl) return;
+                    if (checkingExpiry || !remoteUrl) return;
                     setCheckingExpiry(true);
                     void checkZaloMediaExpired(msg, [remoteUrl], true)
                         .then(stillExpired => {
@@ -2006,17 +1989,19 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
     }
 
     if (loadFailed || !displayUrl) {
-        const canRetryTelegram = isTelegramUser(msg.channel);
-        const canRetryZalo = isZalo(msg.channel);
-        const isRepairing = telegramRepair.repairing || zaloRepairing;
         return (
-            <div className={`${tileHeightClass} flex-1 min-w-0 bg-foreground/5 flex flex-col gap-1 items-center justify-center text-muted-foreground select-none p-1`}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
-                     className="opacity-30">
-                    <rect x="3" y="3" width="18" height="18" rx="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <polyline points="21 15 16 10 5 21"/>
-                    {loadFailed && <line x1="2" y1="2" x2="22" y2="22"/>}
+            <button
+                type="button"
+                onClick={() => void telegramRepair.requestRepair('manual_retry', true)}
+                disabled={!isTelegramUser(msg.channel) || telegramRepair.repairing}
+                title={isTelegramUser(msg.channel) ? 'Tải lại ảnh Telegram này' : undefined}
+                className={`${tileHeightClass} flex-1 min-w-0 bg-foreground/5 flex flex-col gap-1 items-center justify-center text-muted-foreground select-none p-1 disabled:opacity-40 disabled:cursor-not-allowed`}
+            >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="opacity-30">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <polyline points="21 15 16 10 5 21" />
+                    <line x1="2" y1="2" x2="22" y2="22" />
                 </svg>
                 {isRepairing && <span className="text-[10px] opacity-60">{tr('Đang tải lại...')}</span>}
                 {!isRepairing && (canRetryTelegram || canRetryZalo) && (
@@ -2138,7 +2123,6 @@ export function SingleImageInGroup({msg, onView, isSent, isSelecting: isSelectin
                 alt=""
                 decoding="async"
                 className={`${tileHeightClass} w-full object-cover transition-opacity bg-foreground/5${isSelectingProp ? '' : ' hover:opacity-90'}`}
-                onLoad={handleImgLoad}
                 onError={handleImgError}
             />
             {/* Selection overlay */}

@@ -286,6 +286,7 @@ class DatabaseService {
             this.encryptStoredCredentials();
             this.repairZaloZinstantPreviewsOnce();
             this.repairNonZaloContactChannelsOnce();
+            this.repairGroupLastMessageSendersOnce();
             this.scheduleJxlImageRepair();
             this.scheduleRemotePinTrim();
             Logger.log(`[DatabaseService] Initialized at ${this.dbPath} (better-sqlite3, WAL mode)`);
@@ -547,6 +548,7 @@ class DatabaseService {
             this.encryptStoredCredentials();
             this.repairZaloZinstantPreviewsOnce();
             this.repairNonZaloContactChannelsOnce();
+            this.repairGroupLastMessageSendersOnce();
             this.scheduleJxlImageRepair();
             this.scheduleRemotePinTrim();
 
@@ -4173,13 +4175,24 @@ class DatabaseService {
             const ttl = Number(rawMessage?.data?.ttl) || 0;
             if (ttl > 0) this.setMessageTtl(ownerZaloId, String(row.params[0]), ttl);
 
+            let senderPrefix = '';
+            if (row.isGroup) {
+                if (row.isSent || row.senderId === ownerZaloId) {
+                    senderPrefix = 'Bạn: ';
+                } else {
+                    const name = this.resolveSenderName(ownerZaloId, row.threadId, row.senderId, row.dName);
+                    if (name) senderPrefix = `${name}: `;
+                }
+            }
+
             this.updateContactLastMessage(
                 ownerZaloId, row.threadId,
                 row.isGroup ? 1 : 0,
                 row.content,
                 row.msgType,
                 row.timestamp,
-                !row.isSent
+                !row.isSent,
+                senderPrefix
             );
         } catch (err: any) {
             Logger.error(`[DatabaseService] saveMessage error: ${err.message}`);
@@ -4194,6 +4207,7 @@ class DatabaseService {
     private buildZaloMessageRow(ownerZaloId: string, rawMessage: any): {
         threadId: string; isGroup: boolean; isSent: boolean;
         content: string; msgType: string; timestamp: number; params: any[];
+        senderId: string; dName: string;
     } | null {
         const isGroup = rawMessage.type === 1;
         const isSent: boolean = rawMessage.isSelf === true;
@@ -4256,8 +4270,11 @@ class DatabaseService {
             }))
             .filter((mention: any) => mention.user_id && mention.length > 0);
 
+        const dName = rawMessage.data?.dName || rawMessage.data?.senderInfo?.displayName || rawMessage.data?.senderInfo?.zaloName || '';
+
         return {
             threadId, isGroup, isSent, content, msgType, timestamp,
+            senderId: String(uidFrom), dName,
             params: [
                 msgId,
                 cliMsgId,
@@ -4398,9 +4415,19 @@ class DatabaseService {
                 if (!isRecalled && (!prev || row.timestamp >= prev.timestamp)) latest.set(row.threadId, row);
             }
             for (const row of latest.values()) {
+                let senderPrefix = '';
+                if (row.isGroup) {
+                    if (row.isSent || row.senderId === ownerZaloId) {
+                        senderPrefix = 'Bạn: ';
+                    } else {
+                        const name = this.resolveSenderName(ownerZaloId, row.threadId, row.senderId, row.dName);
+                        if (name) senderPrefix = `${name}: `;
+                    }
+                }
                 this.updateContactLastMessage(
                     ownerZaloId, row.threadId, row.isGroup ? 1 : 0,
                     row.content, row.msgType, row.timestamp, false,
+                    senderPrefix
                 );
             }
         })();
@@ -5516,14 +5543,18 @@ class DatabaseService {
 
     private updateContactLastMessage(
         ownerZaloId: string, contactId: string, threadType: number,
-        content: string, msgType: string, timestamp: number, incrementUnread: boolean
+        content: string, msgType: string, timestamp: number, incrementUnread: boolean,
+        senderPrefix?: string
     ): void {
         // Guard: do not create a contact with an invalid contactId
         if (!contactId || contactId === 'undefined' || contactId === 'null' || contactId === '') {
             Logger.warn(`[DB.updateContactLastMessage] ⚠️ SKIPPED - invalid contactId="${contactId}" for owner=${ownerZaloId}`);
             return;
         }
-        const display = this.formatLastMessageContent(content, msgType);
+        let display = this.formatLastMessageContent(content, msgType);
+        if (senderPrefix && !display.startsWith(senderPrefix)) {
+            display = `${senderPrefix}${display}`;
+        }
         const unreadIncrement = incrementUnread ? 1 : 0;
 
         // Only update last_message if the message is newer (or there is no contact yet)
@@ -5738,6 +5769,73 @@ class DatabaseService {
             this.setSetting(key, '1');
         } catch (err: any) {
             Logger.warn(`[DatabaseService] repairNonZaloContactChannelsOnce: ${err?.message}`);
+        }
+    }
+
+    private resolveSenderName(ownerZaloId: string, groupId: string, senderId: string, fallbackName?: string): string {
+        if (!senderId || senderId === ownerZaloId) return 'Bạn';
+        const contact = this.queryOne<{ alias: string | null; display_name: string | null }>(
+            'SELECT alias, display_name FROM contacts WHERE owner_zalo_id = ? AND contact_id = ? LIMIT 1',
+            [ownerZaloId, senderId]
+        );
+        if (contact?.alias && contact.alias.trim()) return contact.alias.trim();
+        if (fallbackName && fallbackName.trim() && fallbackName.trim() !== senderId) return fallbackName.trim();
+        const gm = this.queryOne<{ display_name: string | null }>(
+            'SELECT display_name FROM page_group_member WHERE owner_zalo_id = ? AND group_id = ? AND member_id = ? LIMIT 1',
+            [ownerZaloId, groupId, senderId]
+        );
+        if (gm?.display_name && gm.display_name.trim() && gm.display_name.trim() !== senderId) return gm.display_name.trim();
+        if (contact?.display_name && contact.display_name.trim() && contact.display_name.trim() !== senderId) return contact.display_name.trim();
+        return '';
+    }
+
+    private repairGroupLastMessageSendersOnce(): void {
+        const key = 'repair_group_last_message_senders_v1';
+        try {
+            if (this.getSetting(key) === '1') return;
+            const rows = this.query<{ owner_zalo_id: string; contact_id: string; last_message: string | null }>(`
+                SELECT c.owner_zalo_id, c.contact_id, c.last_message
+                FROM contacts c
+                WHERE c.contact_type = 'group' AND c.last_message IS NOT NULL AND c.last_message <> ''
+            `);
+            let repaired = 0;
+            for (const r of rows) {
+                const currentLast = r.last_message || '';
+                if (/^[^:\n]{1,50}:\s+/.test(currentLast)) continue;
+
+                const latestMsg = this.queryOne<{ sender_id: string; is_sent: number; content: string; msg_type: string }>(`
+                    SELECT sender_id, is_sent, content, msg_type
+                    FROM messages
+                    WHERE owner_zalo_id = ? AND thread_id = ?
+                    ORDER BY timestamp DESC, rowid DESC
+                    LIMIT 1
+                `, [r.owner_zalo_id, r.contact_id]);
+                if (!latestMsg) continue;
+
+                let senderPrefix = '';
+                if (latestMsg.is_sent === 1 || latestMsg.sender_id === r.owner_zalo_id) {
+                    senderPrefix = 'Bạn: ';
+                } else {
+                    const name = this.resolveSenderName(r.owner_zalo_id, r.contact_id, latestMsg.sender_id);
+                    if (name) senderPrefix = `${name}: `;
+                }
+
+                if (senderPrefix) {
+                    const formatted = this.formatLastMessageContent(latestMsg.content, latestMsg.msg_type);
+                    const newLastMsg = senderPrefix + formatted;
+                    this.run(
+                        'UPDATE contacts SET last_message = ? WHERE owner_zalo_id = ? AND contact_id = ?',
+                        [newLastMsg, r.owner_zalo_id, r.contact_id]
+                    );
+                    repaired++;
+                }
+            }
+            this.setSetting(key, '1');
+            if (repaired > 0) {
+                Logger.log(`[DatabaseService] repairGroupLastMessageSendersOnce: repaired ${repaired} group conversations`);
+            }
+        } catch (err: any) {
+            Logger.warn(`[DatabaseService] repairGroupLastMessageSendersOnce: ${err?.message}`);
         }
     }
 
