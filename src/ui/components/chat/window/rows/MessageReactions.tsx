@@ -43,7 +43,8 @@ export async function toggleTelegramQuickReaction(ctx: MessageRowContext, msg: a
 export function TelegramReactionTrigger({ ctx, msg, isSent }: { ctx: MessageRowContext; msg: any; isSent: boolean }) {
   const { activeAccountId, armReactionPicker, closeReactionPicker, handleCancelReaction, handleReact, openReactionPicker, reactionPickerMsgId, scheduleCloseReactionPicker, setReactionPopup, telegramReactions } = ctx;
   const quick = useTelegramQuickReaction(activeAccountId, msg.channel === 'telegram_user');
-  const myEmoji = myTelegramReaction(parseReactionsFull(msg.reactions, msg.channel).emoji, activeAccountId);
+  const rFull = parseReactionsFull(msg.reactions, msg.channel);
+  const myEmoji = myTelegramReaction(rFull.emoji, activeAccountId);
   const loadTelegramReactions = () => {
     if (msg.channel === 'telegram_user') telegramReactions.load();
   };
