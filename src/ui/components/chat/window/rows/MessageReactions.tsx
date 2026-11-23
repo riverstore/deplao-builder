@@ -17,6 +17,7 @@ import {
 } from '@/lib/chat/reactions/reactionChoices';
 import { zaloLatestReactionOf } from '../../../../../shared/zalo/zaloReactions';
 import type { MessageRowContext, RowLocals } from './rowContext';
+import { tr } from '../../../../../shared/i18n';
 
 type MessageReactionsProps = { ctx: MessageRowContext } & Pick<RowLocals, 'msg' | 'isSent' | 'reactionCounts' | 'telegramPostMeta'>;
 
@@ -51,7 +52,7 @@ export function TelegramReactionTrigger({ ctx, msg, isSent }: { ctx: MessageRowC
   const reactorTitle = (onlyEmoji?: string): string | undefined => {
     const data = rFull;
     const nameOf = (uid: string): string => {
-      if (uid === activeAccountId) return 'Bạn';
+      if (uid === activeAccountId) return tr('Bạn');
       const c = ctx.getContact(uid);
       const fromContact = c?.alias || c?.display_name;
       if (fromContact && fromContact !== uid) return fromContact;
@@ -68,7 +69,10 @@ export function TelegramReactionTrigger({ ctx, msg, isSent }: { ctx: MessageRowC
       const unknown = uids.length - names.length;
       const shown = names.slice(0, MAX_NAMES);
       const rest = names.length - shown.length + unknown;
-      const text = shown.join(', ') + (rest > 0 ? `${shown.length ? ' và ' : ''}${rest} người khác` : '');
+      const othersText = rest > 0
+        ? (shown.length ? tr(' và {{count}} người khác', { count: rest }) : tr('{{count}} người khác', { count: rest }))
+        : '';
+      const text = shown.join(', ') + othersText;
       lines.push(onlyEmoji ? text : `${displayReactionEmoji(emoji)} ${text}`);
     }
     return lines.length ? lines.join('\n') : undefined;

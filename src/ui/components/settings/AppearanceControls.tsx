@@ -2,6 +2,7 @@ import React from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { APP_PALETTES, useAppStore, type AppPalette, type AppThemeMode } from '@/store/app/appStore';
 import { MinimizeIcon, MonitorIcon, SunIcon } from '../common/icons';
+import { tr } from '../../../shared/i18n';
 
 const MODE_OPTIONS: Array<{ value: AppThemeMode; label: string; icon: React.ReactNode }> = [
   { value: 'light', label: 'Sáng', icon: <SunIcon className="w-4 h-4" /> },
@@ -22,7 +23,7 @@ const PALETTE_META: Record<AppPalette, { label: string; swatch: string; hint?: s
 export function ThemeModePicker({ className = '' }: { className?: string }) {
   const { themeMode, setThemeMode } = useAppStore(useShallow(s => ({ themeMode: s.themeMode, setThemeMode: s.setThemeMode })));
   return (
-    <div className={`flex bg-muted rounded-lg p-0.5 gap-0.5 ${className}`} role="radiogroup" aria-label="Giao diện">
+    <div className={`flex bg-muted rounded-lg p-0.5 gap-0.5 ${className}`} role="radiogroup" aria-label={tr('Giao diện')}>
       {MODE_OPTIONS.map(opt => (
         <button
           key={opt.value}
@@ -34,7 +35,7 @@ export function ThemeModePicker({ className = '' }: { className?: string }) {
             themeMode === opt.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
-          {opt.icon}{opt.label}
+          {opt.icon}{tr(opt.label)}
         </button>
       ))}
     </div>
@@ -45,11 +46,13 @@ export function ThemeModePicker({ className = '' }: { className?: string }) {
 export function PalettePicker({ showLabels = true }: { showLabels?: boolean }) {
   const { palette, setPalette, theme } = useAppStore(useShallow(s => ({ palette: s.palette, setPalette: s.setPalette, theme: s.theme })));
   return (
-    <div className="flex flex-wrap gap-3" role="radiogroup" aria-label="Bảng màu">
+    <div className="flex flex-wrap gap-3" role="radiogroup" aria-label={tr('Bảng màu')}>
       {APP_PALETTES.map(value => {
         const meta = PALETTE_META[value];
         const active = palette === value;
         const inactiveInLight = (value === 'amoled' || value === 'zadark') && theme === 'light';
+        const labelText = tr(meta.label);
+        const titleText = meta.hint ? `${labelText} — ${tr(meta.hint)}` : labelText;
         return (
           <button
             key={value}
@@ -57,7 +60,7 @@ export function PalettePicker({ showLabels = true }: { showLabels?: boolean }) {
             role="radio"
             aria-checked={active}
             onClick={() => setPalette(value)}
-            title={meta.hint ? `${meta.label} — ${meta.hint}` : meta.label}
+            title={titleText}
             className="flex flex-col items-center gap-1 group"
           >
             <span
@@ -72,7 +75,7 @@ export function PalettePicker({ showLabels = true }: { showLabels?: boolean }) {
                 </svg>
               )}
             </span>
-            {showLabels && <span className={`text-[11px] ${active ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{meta.label}</span>}
+            {showLabels && <span className={`text-[11px] ${active ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>{labelText}</span>}
           </button>
         );
       })}

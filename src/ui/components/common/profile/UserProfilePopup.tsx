@@ -773,7 +773,7 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
               <button
                 onClick={() => setImageZoom(z => Math.max(0.5, Number((z - 0.25).toFixed(2))))}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-                title="Thu nhỏ (-)"
+                title={tr('Thu nhỏ (-)')}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
@@ -783,7 +783,7 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
               <button
                 onClick={() => setImageZoom(z => Math.min(3, Number((z + 0.25).toFixed(2))))}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-                title="Phóng to (+)"
+                title={tr('Phóng to (+)')}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
@@ -793,7 +793,7 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
               <button
                 onClick={() => setImageZoom(1)}
                 className="px-2.5 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white text-xs font-medium transition-colors"
-                title="Về kích thước chuẩn (100%)"
+                title={tr('Về kích thước chuẩn (100%)')}
               >
                 1:1
               </button>
@@ -805,14 +805,14 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
                     const defaultName = `${cleanName}_${imageViewer.label === 'Ảnh đại diện' ? 'avatar' : 'cover'}.jpg`;
                     const res = await ipc.file?.saveAs({ remoteUrl: imageViewer.url, defaultName });
                     if (res?.success && !res.canceled) {
-                      showNotification('Đã tải ảnh về máy', 'success');
+                      showNotification(tr('Đã tải ảnh về máy'), 'success');
                     }
                   } catch (err: any) {
-                    showNotification(`Lỗi tải ảnh: ${err?.message || err}`, 'error');
+                    showNotification(tr('Lỗi tải ảnh: {{error}}', { error: err?.message || err }), 'error');
                   }
                 }}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
-                title="Tải ảnh về máy"
+                title={tr('Tải ảnh về máy')}
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -822,7 +822,7 @@ export function UserProfilePopup({ userId, anchorX, anchorY, contacts, activeAcc
               <button
                 onClick={() => { setImageViewer(null); setImageZoom(1); }}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center text-white transition-colors ml-1"
-                title="Đóng (Esc)"
+                title={tr('Đóng (Esc)')}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>

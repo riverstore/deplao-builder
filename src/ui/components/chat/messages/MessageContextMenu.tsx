@@ -154,17 +154,17 @@ export function getSaveItem(msg: any): { localPath?: string; remoteUrl?: string;
 /** Lưu nhiều tin (album / các tin đã chọn) vào một thư mục người dùng chọn; hiện thông báo kết quả */
 export async function saveMessagesToFolder(msgs: any[], notify?: (message: string, type: 'success' | 'error' | 'info') => void): Promise<void> {
   const items = msgs.map(getSaveItem).filter((it): it is NonNullable<ReturnType<typeof getSaveItem>> => !!it);
-  if (items.length === 0) { notify?.('Không có ảnh / file nào để lưu trong các tin đã chọn', 'info'); return; }
+  if (items.length === 0) { notify?.(tr('Không có ảnh / file nào để lưu trong các tin đã chọn'), 'info'); return; }
   try {
     const res = await ipc.file?.saveMany({ items });
     if (res?.canceled) return;
     if (res?.success) {
-      notify?.(res.failed ? `Đã lưu ${res.saved}/${res.total} file (${res.failed} file lỗi)` : `Đã lưu ${res.saved} file`, res.failed ? 'info' : 'success');
+      notify?.(res.failed ? tr('Đã lưu {{saved}}/{{total}} file ({{failed}} file lỗi)', { saved: res.saved, total: res.total, failed: res.failed }) : tr('Đã lưu {{saved}} file', { saved: res.saved }), res.failed ? 'info' : 'success');
     } else {
-      notify?.('Lỗi lưu file: ' + (res?.error || 'không rõ'), 'error');
+      notify?.(tr('Lỗi lưu file: {{error}}', { error: res?.error || tr('không rõ') }), 'error');
     }
   } catch (e: any) {
-    notify?.('Lỗi: ' + (e?.message || e), 'error');
+    notify?.(tr('Lỗi: {{message}}', { message: e?.message || e }), 'error');
   }
 }
 

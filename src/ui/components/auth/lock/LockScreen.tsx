@@ -465,7 +465,7 @@ export default function LockScreen({ onUnlock }: Props) {
                     })}
                   </div>
                   <p className="text-center text-xs font-mono text-emerald-300/80 mt-1 mb-2">
-                    Mã PIN gồm {codeLength} chữ số • Tự động mở khoá khi nhập đủ
+                    {tr('Mã PIN gồm {{codeLength}} chữ số • Tự động mở khoá khi nhập đủ', { codeLength })}
                   </p>
                 </>
               ) : (
@@ -477,7 +477,7 @@ export default function LockScreen({ onUnlock }: Props) {
                     value={password}
                     onChange={e => { setPassword(e.target.value); setError(''); }}
                     onKeyDown={handleKeyDown}
-                    placeholder="Nhập mã bảo vệ..."
+                    placeholder={tr('Nhập mã bảo vệ...')}
                     disabled={loading || cooldown > 0}
                     className="w-full px-4 py-3.5 rounded-xl bg-black/90 text-white font-mono text-xl font-bold text-center tracking-widest placeholder-white/30 border-2 border-emerald-500/50 focus:border-emerald-400 focus:shadow-[0_0_20px_rgba(52,211,153,0.5)] focus:outline-none disabled:opacity-40 transition-all duration-200"
                     autoComplete="off"

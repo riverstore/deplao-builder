@@ -27,20 +27,36 @@
 - Kính lúp ô tìm kiếm chuẩn hóa bảo mật: bình thường hiển thị màu xám trung tính (không làm lộ việc có hội thoại ẩn); **chỉ chuyển màu đỏ và nhấp nháy chấm đỏ khi có tin nhắn mới chưa đọc** từ hội thoại ẩn; khi đang xem hội thoại ẩn thì kính lúp có nền đỏ, bấm vào để khóa lại ngay.
 - Bảo toàn cờ ẩn trong cơ sở dữ liệu máy tính, không bị mất cờ khi Zalo API tạm thời lỗi hoặc chưa đồng bộ.
 
-**Giao diện** (lấy ý tưởng từ [ZaDark](https://github.com/ncdai/zadark), tự viết lại, không chép mã)
+**Giao diện & Đa ngôn ngữ** (lấy ý tưởng từ [ZaDark](https://github.com/ncdai/zadark), tự viết lại, không chép mã)
 - Giao diện Sáng / Tối / **Theo hệ thống**; bảng màu Xanh dương, Xanh lá, Tím, Đen tuyền (AMOLED), ZaDark.
 - Nút **Tùy chỉnh nhanh** trên thanh trên cùng: giao diện, bảng màu, phông chữ Google Fonts (tải một lần rồi lưu trên máy), cỡ chữ tin nhắn.
 - Riêng tư: làm mờ tin nhắn / ảnh đại diện / tên hội thoại (rê chuột để xem), ẩn trạng thái "đang soạn" và "đã xem".
+- **Hỗ trợ đa ngôn ngữ toàn diện (i18n)**: Mọi tính năng tùy biến đều hỗ trợ song ngữ Tiếng Việt, Tiếng Anh (English) và Tiếng Trung (中文).
 - Cài đặt giao diện lưu trong cơ sở dữ liệu của app nên **dùng chung giữa `npm run dev` và bản build**, đi theo thư mục dữ liệu (portable).
 - **Menu chuột phải (Context menu) cho textbox**: Đầy đủ tính năng Hoàn tác, Làm lại, Cắt, Sao chép, Dán, Dán thuần văn bản, Xóa, Chọn tất cả cho mọi ô nhập liệu (ô soạn tin nhắn, ô tìm kiếm, form...) và hỗ trợ sao chép nhanh khi bôi đen văn bản.
+
+**Khoá ứng dụng & Bảo mật (Matrix Cyberpunk)**
+- Màn hình khoá phong cách **Matrix Digital Rain** với hiệu ứng ánh sáng neon, độ tương phản cao và tối ưu CPU.
+- Hỗ trợ 2 chế độ mở khoá: **các ô nhập PIN số** (tự động mở khoá khi nhập đủ số) hoặc **gõ chữ truyền thống**.
+- Tuỳ chọn **Tự động khoá khi không hoạt động** (1, 2, 5, 10, 15, 30, 60 phút).
+- Phím tắt khoá nhanh `Ctrl+Shift+L` và nút khoá trên thanh tiêu đề.
+
+**Xem hồ sơ & Thành viên nhóm**
+- Phân nhóm thành viên trực quan: **Trưởng & phó nhóm**, **Bạn bè**, **Chưa kết bạn**.
+- Nút **Kết bạn trực tiếp** ngay trong danh sách thành viên nhóm Zalo.
+- Xem ảnh đại diện, ảnh bìa kích thước lớn với bộ điều khiển phóng to / thu nhỏ (zoom), cuộn chuột và lưu về máy.
 
 **Thông báo**
 - Đồng bộ danh sách tắt thông báo đặt trên điện thoại / Zalo PC; tùy chọn nháy taskbar với hội thoại đã tắt thông báo.
 
 ## Nhật ký thay đổi (so với bản gốc)
 
-Dựa trên Deplao v26.10.4.
+Dựa trên Deplao v26.11.1 (chuẩn bị cập nhật v26.11.2).
 
+- **Hỗ trợ đa ngôn ngữ hoàn thiện (i18n)**: Toàn bộ bảng Tùy chỉnh nhanh, Riêng tư, Màn hình khoá, Tải file/ảnh, Thành viên nhóm, Hồ sơ... đồng bộ với hệ thống i18n của Deplao, hiển thị chuẩn Tiếng Anh và Tiếng Trung.
+- **Màn hình khoá Matrix Cyberpunk**: Hiệu ứng mưa số nhị phân Matrix, hỗ trợ nhập mã PIN tự động mở khoá, tự động khoá sau thời gian không hoạt động, phím tắt `Ctrl+Shift+L`.
+- **Thành viên nhóm & Xem ảnh đại diện**: Phân nhóm Trưởng/Phó nhóm, Bạn bè, Chưa kết bạn; nút gửi lời mời kết bạn trong nhóm; trình xem ảnh đại diện/ảnh bìa hỗ trợ zoom và tải về máy.
+- **Kéo thả tệp chờ gửi**: Kéo file/ảnh vào khung chat hiển thị khay chờ gửi xem trước (icon theo loại file, tên file, dung lượng) kèm nút xoá từng file hoặc xoá tất cả.
 - **Menu chuột phải (Context menu) cho ô nhập liệu**: Khắc phục lỗi thiếu context menu trên các textbox; hỗ trợ đầy đủ Hoàn tác, Cắt, Sao chép, Dán, Dán thuần văn bản, Xóa, Chọn tất cả trên toàn bộ app.
 - **Hội thoại ẩn Zalo (mã PIN)**: Sửa lỗi gõ PIN không mở được hội thoại ẩn; kính lúp ô tìm kiếm chuẩn hóa bảo mật theo Zalo (chỉ đỏ khi có tin mới chưa đọc từ hội thoại ẩn, bình thường xám); bảo toàn cờ ẩn trong DB máy tính.
 - **Tìm kiếm đa từ không cạnh nhau**: Gõ các từ cách nhau không dấu (như `"an tha"`) tìm thấy ngay tên đầy đủ (như `"An (THCS Vĩnh Thạnh)"`), highlight đồng thời các từ tìm được trên toàn bộ các bộ lọc, chọn thành viên nhóm và nhắc tên.

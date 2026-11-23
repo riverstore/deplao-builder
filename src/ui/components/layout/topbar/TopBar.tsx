@@ -912,7 +912,7 @@ export default function TopBar() {
         <button
           onClick={() => ipc.shell?.openExternal(SUPPORT_GITHUB_URL)}
           className="w-9 h-9 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-yellow-400 transition-colors relative group/gh"
-          title={"Star Deplao trên GitHub\nDự án mã nguồn mở - Ủng hộ team bằng cách ghé thăm và thả sao nhé!"}
+          title={tr('Star Deplao trên GitHub\nDự án mã nguồn mở - Ủng hộ team bằng cách ghé thăm và thả sao nhé!')}
         >
           <span className="relative">
             {/* GitHub icon */}
@@ -936,7 +936,7 @@ export default function TopBar() {
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('lockScreen:lock'))}
             className="w-9 h-9 flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-amber-400 transition-colors"
-            title="Khoá ứng dụng (Ctrl+Shift+L)"
+            title={tr('Khoá ứng dụng (Ctrl+Shift+L)')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>

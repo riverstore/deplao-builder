@@ -1387,16 +1387,16 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
       const res = await ipc.zalo?.sendFriendRequest({
         auth,
         userId: member.userId,
-        msg: `Xin chào! Mình là thành viên nhóm ${groupInfo?.name || ''}, kết bạn với mình nhé!`,
+        msg: tr('Xin chào! Mình là thành viên nhóm {{groupName}}, kết bạn với mình nhé!', { groupName: groupInfo?.name || '' }),
       });
       if (res?.error) {
-        showNotification(res.error || 'Gửi lời mời kết bạn thất bại', 'error');
+        showNotification(res.error || tr('Gửi lời mời kết bạn thất bại'), 'error');
       } else {
         setSentRequests(prev => ({ ...prev, [member.userId]: true }));
-        showNotification(`Đã gửi lời mời kết bạn tới ${member.displayName || member.userId}`, 'success');
+        showNotification(tr('Đã gửi lời mời kết bạn tới {{target}}', { target: member.displayName || member.userId }), 'success');
       }
     } catch (err: any) {
-      showNotification('Gửi lời mời thất bại: ' + (err?.message || err), 'error');
+      showNotification(tr('Gửi lời mời thất bại: {{error}}', { error: err?.message || err }), 'error');
     } finally {
       setSendingRequests(prev => ({ ...prev, [member.userId]: false }));
     }
@@ -1409,7 +1409,7 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
     if (alias && alias.trim()) {
       return {
         main: alias.trim(),
-        sub: m.displayName && m.displayName !== alias.trim() ? `Tên Zalo: ${m.displayName}` : null,
+        sub: m.displayName && m.displayName !== alias.trim() ? tr('Tên Zalo: {{name}}', { name: m.displayName }) : null,
       };
     }
     // 2. Ưu tiên nhì: Tên bạn bè đã lưu trong danh bạ Zalo
@@ -1417,7 +1417,7 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
     if (savedFriendName && savedFriendName.trim() && savedFriendName.trim() !== m.userId) {
       return {
         main: savedFriendName.trim(),
-        sub: m.displayName && m.displayName !== savedFriendName.trim() ? `Tên Zalo: ${m.displayName}` : null,
+        sub: m.displayName && m.displayName !== savedFriendName.trim() ? tr('Tên Zalo: {{name}}', { name: m.displayName }) : null,
       };
     }
     // 3. Fallback: Tên hiển thị Zalo của thành viên
@@ -1433,8 +1433,8 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
       const admins = visibleRows.filter(m => groupRoleKind(m.role, channel) !== 'member');
       const members = visibleRows.filter(m => groupRoleKind(m.role, channel) === 'member');
       const res = [];
-      if (admins.length > 0) res.push({ key: 'admins', title: 'Trưởng & phó nhóm', items: admins });
-      if (members.length > 0) res.push({ key: 'members', title: 'Thành viên', items: members });
+      if (admins.length > 0) res.push({ key: 'admins', title: tr('Trưởng & phó nhóm'), items: admins });
+      if (members.length > 0) res.push({ key: 'members', title: tr('Thành viên'), items: members });
       return res;
     }
 
@@ -1444,15 +1444,15 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
     const strangers = normalMembers.filter(m => !checkIsFriend(m.userId));
 
     const res = [];
-    if (admins.length > 0) res.push({ key: 'admins', title: 'Trưởng & phó nhóm', items: admins });
-    if (friends.length > 0) res.push({ key: 'friends', title: 'Bạn bè', items: friends });
-    if (strangers.length > 0) res.push({ key: 'strangers', title: 'Chưa kết bạn', items: strangers });
+    if (admins.length > 0) res.push({ key: 'admins', title: tr('Trưởng & phó nhóm'), items: admins });
+    if (friends.length > 0) res.push({ key: 'friends', title: tr('Bạn bè'), items: friends });
+    if (strangers.length > 0) res.push({ key: 'strangers', title: tr('Chưa kết bạn'), items: strangers });
     return res;
   }, [visibleRows, channel, checkIsFriend]);
 
   const getStatusText = (member: GroupMember) => {
     const live = userPresence[`${myAccountId}_${member.userId}`];
-    if (live?.status === 'online') return 'Đang online';
+    if (live?.status === 'online') return tr('Đang online');
     if (live?.lastSeen) return formatTelegramMemberStatus({ ...member, lastSeenAt: live.lastSeen, statusText: tr('Đã offline') });
     return formatTelegramMemberStatus(member);
   };
@@ -1680,7 +1680,7 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
                         <p className="text-sm font-medium text-foreground truncate">{nameInfo.main}</p>
                         {isMe && (
                           <span className="text-[10px] bg-muted-foreground/15 text-muted-foreground px-1.5 py-0.2 rounded-full flex-shrink-0">
-                            Bạn
+                            {tr('Bạn')}
                           </span>
                         )}
                       </div>
@@ -1690,7 +1690,7 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
                         </p>
                       )}
                       {statusText && (
-                        <p className={`text-[11px] truncate ${statusText === 'Đang online' ? 'text-green-500 font-medium' : 'text-subtle-foreground'}`}>
+                        <p className={`text-[11px] truncate ${statusText === tr('Đang online') ? 'text-green-500 font-medium' : 'text-subtle-foreground'}`}>
                           {statusText}
                         </p>
                       )}
@@ -1707,14 +1707,14 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
                       sentRequests[m.userId] ? (
                         <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-full border border-border flex-shrink-0">
                           <UserCheckIcon className="w-3 h-3 text-emerald-500" />
-                          Đã gửi
+                          {tr('Đã gửi')}
                         </span>
                       ) : (
                         <button
                           type="button"
                           onClick={(e) => void handleSendFriendRequest(m, e)}
                           disabled={sendingRequests[m.userId]}
-                          title="Gửi lời mời kết bạn"
+                          title={tr('Gửi lời mời kết bạn')}
                           className="flex items-center gap-1 text-[11px] font-medium text-primary hover:text-primary-foreground bg-primary/10 hover:bg-primary px-2 py-0.5 rounded-full border border-primary/30 transition-all flex-shrink-0"
                         >
                           {sendingRequests[m.userId] ? (
@@ -1722,7 +1722,7 @@ function MembersPanel({ groupInfo, groupId, onBack, onRefresh, onApiSync, myAcco
                           ) : (
                             <>
                               <UserPlusIcon className="w-3 h-3" />
-                              Kết bạn
+                              {tr('Kết bạn')}
                             </>
                           )}
                         </button>

@@ -5,6 +5,7 @@ import { PalettePicker, ThemeModePicker } from '../../settings/AppearanceControl
 import { SlidersIcon } from '../../common/icons';
 import { Switch } from '@/components/ui';
 import { usePrivacyStore, type PrivacyKey } from '@/store/privacyStore';
+import { tr } from '../../../../shared/i18n';
 
 const PRIVACY_OPTIONS: Array<{ key: PrivacyKey; label: string; description?: string }> = [
   { key: 'blurLastMessage', label: 'Ẩn Tin nhắn gần nhất', description: 'Làm mờ ở danh sách hội thoại, rê chuột để xem' },
@@ -57,8 +58,8 @@ export default function QuickSettingsPanel() {
       <button
         onClick={() => setOpen(v => !v)}
         className={`w-9 h-9 flex items-center justify-center transition-colors ${open ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-        title="Tùy chỉnh nhanh"
-        aria-label="Tùy chỉnh nhanh"
+        title={tr('Tùy chỉnh nhanh')}
+        aria-label={tr('Tùy chỉnh nhanh')}
         aria-expanded={open}
       >
         <SlidersIcon className="w-4 h-4" />
@@ -67,24 +68,24 @@ export default function QuickSettingsPanel() {
       {open && (
         <div className="absolute right-0 top-full mt-1 z-50 w-80 max-h-[80vh] overflow-y-auto bg-popover border border-border rounded-xl shadow-xl p-4 space-y-4 text-sm">
           <div>
-            <SectionTitle>Giao diện</SectionTitle>
+            <SectionTitle>{tr('Giao diện')}</SectionTitle>
             <ThemeModePicker />
           </div>
 
           <div>
-            <SectionTitle>Bảng màu</SectionTitle>
+            <SectionTitle>{tr('Bảng màu')}</SectionTitle>
             <PalettePicker />
           </div>
 
           <div>
-            <SectionTitle>Phông chữ (Google Fonts)</SectionTitle>
+            <SectionTitle>{tr('Phông chữ (Google Fonts)')}</SectionTitle>
             <div className="flex gap-2">
               <input
                 list="quick-settings-fonts"
                 value={fontDraft}
                 onChange={e => setFontDraft(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') applyFont(); }}
-                placeholder="Mặc định"
+                placeholder={tr('Mặc định')}
                 className="flex-1 min-w-0 h-8 px-2 rounded-md bg-muted border border-input text-foreground placeholder:text-subtle-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               />
               <datalist id="quick-settings-fonts">
@@ -95,28 +96,28 @@ export default function QuickSettingsPanel() {
                 disabled={fontDraft.trim() === fontFamily}
                 className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-medium disabled:opacity-40"
               >
-                Áp dụng
+                {tr('Áp dụng')}
               </button>
             </div>
             <p className="text-[11px] text-subtle-foreground mt-1.5">
-              Tải về một lần rồi lưu trên máy. Để trống và bấm Áp dụng để dùng phông mặc định.
+              {tr('Tải về một lần rồi lưu trên máy. Để trống và bấm Áp dụng để dùng phông mặc định.')}
             </p>
           </div>
 
           <div>
-            <SectionTitle>Cỡ chữ của tin nhắn</SectionTitle>
+            <SectionTitle>{tr('Cỡ chữ của tin nhắn')}</SectionTitle>
             <select
               value={chatFontSize}
               onChange={e => setChatFontSize(Number(e.target.value))}
               className="w-full h-8 px-2 rounded-md bg-muted border border-input text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             >
-              <option value={0}>Mặc định</option>
+              <option value={0}>{tr('Mặc định')}</option>
               {CHAT_FONT_SIZES.map(px => <option key={px} value={px}>{px}px</option>)}
             </select>
           </div>
 
           <div className="border-t border-border pt-3">
-            <SectionTitle>Riêng tư</SectionTitle>
+            <SectionTitle>{tr('Riêng tư')}</SectionTitle>
             <div className="space-y-2.5">
               {PRIVACY_OPTIONS.map(opt => (
                 <Switch
@@ -124,8 +125,8 @@ export default function QuickSettingsPanel() {
                   size="sm"
                   checked={privacy[opt.key]}
                   onCheckedChange={v => setPrivacy(opt.key, v)}
-                  label={opt.label}
-                  description={opt.description}
+                  label={tr(opt.label)}
+                  description={opt.description ? tr(opt.description) : undefined}
                   className="flex-row-reverse justify-between"
                 />
               ))}

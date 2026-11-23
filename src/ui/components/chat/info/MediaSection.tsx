@@ -898,13 +898,13 @@ function FileRow({ msg }: { msg: any }) {
                 zaloId: msg.owner_zalo_id || undefined,
               });
               if (res?.canceled) return;
-              if (res?.success) useAppStore.getState().showNotification('Đã lưu file về máy', 'success');
-              else useAppStore.getState().showNotification(res?.error || 'Không lưu được file', 'error');
+              if (res?.success) useAppStore.getState().showNotification(tr('Đã lưu file về máy'), 'success');
+              else useAppStore.getState().showNotification(res?.error || tr('Không lưu được file'), 'error');
             } catch (err: any) {
-              useAppStore.getState().showNotification(err?.message || 'Không lưu được file', 'error');
+              useAppStore.getState().showNotification(err?.message || tr('Không lưu được file'), 'error');
             }
           }}
-          title="Lưu về máy…"
+          title={tr('Lưu về máy…')}
           className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent opacity-0 group-hover/file:opacity-100 transition-all flex-shrink-0"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

@@ -3625,9 +3625,9 @@ interface FilePreview { prefix?: string; fileName: string; iconSrc: string }
 
 function filePreview(fileName: string | undefined, fileExt?: string, prefix?: string): FilePreview {
   const name = String(fileName || '').trim();
-  return name && name !== 'File đính kèm'
+  return name && name !== 'File đính kèm' && name !== tr('File đính kèm')
     ? { prefix, fileName: name, iconSrc: fileTypeIconSrc(name, fileExt) }
-    : { prefix, fileName: 'File đính kèm', iconSrc: fileTypeIconSrc('') };
+    : { prefix, fileName: tr('File đính kèm'), iconSrc: fileTypeIconSrc('') };
 }
 
 /** Dòng xem trước tin cuối; tin file trả về FilePreview để hiển thị icon theo loại file.

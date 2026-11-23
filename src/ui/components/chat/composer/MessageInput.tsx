@@ -892,7 +892,7 @@ export default function MessageInput() {
                 topicRootMessageId: activeTopicId || undefined, filePath, fileType: 'image',
                 ...(activeTopicId && quotePayload ? { quote: quotePayload } : {}),
               });
-              if (!result?.success) return { success: false, error: result?.error || 'Gửi ảnh Telegram thất bại' };
+              if (!result?.success) return { success: false, error: result?.error || tr('Gửi ảnh Telegram thất bại') };
               messageId = result.messageId;
             }
             return { success: true, msgId: messageId };
@@ -902,7 +902,7 @@ export default function MessageInput() {
               typeChat: activeThreadType === 0 ? 'user' : null,
               ...(batchReplyToMsgId ? { replyToMessageId: batchReplyToMsgId } : {}),
             });
-            if (!batchRes?.success) return { success: false, error: batchRes?.error || 'Gửi ảnh Facebook thất bại' };
+            if (!batchRes?.success) return { success: false, error: batchRes?.error || tr('Gửi ảnh Facebook thất bại') };
             return { success: true, msgId: (batchRes as any)?.messageId };
           } else {
             const res = await ipc.zalo?.sendImages({
@@ -965,7 +965,7 @@ export default function MessageInput() {
               topicRootMessageId: activeTopicId || undefined, filePath: tempPath, body: '',
               quote: quotePayload || undefined,
             });
-            if (!r.success) return { success: false, error: r.error || 'Gửi video Facebook thất bại' };
+            if (!r.success) return { success: false, error: r.error || tr('Gửi video Facebook thất bại') };
             return { success: true, msgId: (r as any)?.messageId };
           } else {
             let thumbUrl = '';
@@ -976,7 +976,7 @@ export default function MessageInput() {
             }
             const uploadVideoRes = await ipc.zalo?.uploadVideoFile?.({ auth, videoPath: tempPath, threadId: activeThreadId, type: activeThreadType });
             const videoUrl: string = uploadVideoRes?.response?.fileUrl || '';
-            if (!videoUrl) return { success: false, error: 'Upload video thất bại' };
+            if (!videoUrl) return { success: false, error: tr('Upload video thất bại') };
             const sendRes = await ipc.zalo?.sendVideo({
               auth,
               options: { videoUrl, thumbnailUrl: thumbUrl || videoUrl, duration: duration ? duration * 1000 : undefined, width: width || undefined, height: height || undefined },
@@ -1021,7 +1021,7 @@ export default function MessageInput() {
               filePath: tempPath, threadType: activeThreadType,
               ...(activeTopicId && quotePayload ? { quote: quotePayload } : {}),
             });
-            if (!fileRes?.success) return { success: false, error: fileRes?.error || 'Gửi file thất bại' };
+            if (!fileRes?.success) return { success: false, error: fileRes?.error || tr('Gửi file thất bại') };
             return { success: true, msgId: (fileRes as any)?.messageId };
           } else {
             const res = await ipc.zalo?.sendFile({
@@ -3265,7 +3265,7 @@ export default function MessageInput() {
                 type="button"
                 onClick={() => setPendingFiles(prev => prev.filter(f => f.id !== item.id))}
                 className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-accent hover:bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg transition-colors"
-                title={`Xóa ${item.name}`}
+                title={tr('Xóa {{name}}', { name: item.name })}
               >✕</button>
             </div>
           ))}
